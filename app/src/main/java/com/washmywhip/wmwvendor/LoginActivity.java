@@ -285,6 +285,10 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             startActivity(login);
             finish();
 
+        } else if(v.getId() == forgotPassword.getId()){
+            Intent forgotPass = new Intent(this,ForgotPasswordActivity.class);
+            startActivity(forgotPass);
+            finish();
         }
     }
 

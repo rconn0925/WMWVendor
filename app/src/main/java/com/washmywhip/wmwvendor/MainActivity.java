@@ -141,8 +141,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         allowLocationServices(true);
+        mMap.getUiSettings().setAllGesturesEnabled(false);
+        mMap.getUiSettings().setMyLocationButtonEnabled(false);
         mMap.setOnMyLocationChangeListener(myLocationChangeListener);
         mMap.setOnCameraChangeListener(myCameraChangeListener);
+
 
 
     }
