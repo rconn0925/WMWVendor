@@ -8,7 +8,7 @@
 
     <include layout="@layout/activity_maps" />
 
-    <include layout="@layout/inactive_layout" />
+    <include layout="@layout/loading_layout" />
 
     <FrameLayout
         android:layout_width="match_parent"

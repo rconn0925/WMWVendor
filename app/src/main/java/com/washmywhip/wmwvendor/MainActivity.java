@@ -1,10 +1,16 @@
 package com.washmywhip.wmwvendor;
 
+import android.Manifest;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
 import android.preference.PreferenceManager;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.widget.DrawerLayout;
@@ -17,13 +23,18 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
+import java.util.List;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
@@ -38,6 +49,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private SharedPreferences mSharedPreferences;
     private View currentView;
     private VendorState vendorState;
+    private LatLng currentLocation;
+    private Geocoder mGeocoder;
+    private int isLoaded;
+
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -45,6 +60,47 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     DrawerLayout mDrawerLayout;
     @InjectView(R.id.mListView)
     ListView navDrawerList;
+    @InjectView(R.id.loadingLayout)
+    RelativeLayout loadingLayout;
+
+    private GoogleMap.OnMyLocationChangeListener myLocationChangeListener = new GoogleMap.OnMyLocationChangeListener() {
+        @Override
+        public void onMyLocationChange(Location location) {
+            LatLng loc = new LatLng(location.getLatitude(),location.getLongitude());;
+            if(currentLocation!=null && mMap!=null){
+                //Only force a camera update if user has traveled 0.1 miles from last location
+                if(distance(currentLocation.latitude,currentLocation.longitude,loc.latitude,loc.longitude)>0.1){
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 16.0f));
+                    currentLocation = loc;
+                }
+
+            } else {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 16.0f));
+            }
+            currentLocation = loc;
+            //makes custome icon for markers... might be useful to mark vendors
+            //IconGenerator factory = new IconGenerator(getApplicationContext());
+            //Bitmap icon = factory.makeIcon("Set Location");
+            // mMarker = mMap.addMarker(new MarkerOptions().position(loc).icon(BitmapDescriptorFactory.fromBitmap(icon)));
+        }
+    };
+    private GoogleMap.OnCameraChangeListener myCameraChangeListener = new GoogleMap.OnCameraChangeListener() {
+        @Override
+        public void onCameraChange(CameraPosition cameraPosition) {
+            LatLng cameraLocation = cameraPosition.target;
+            try {
+                List<Address> addressList = mGeocoder.getFromLocation(cameraLocation.latitude, cameraLocation.longitude, 1);
+                if (addressList.size() > 0) {
+                    if (isLoaded == -1) {
+                        isLoaded = 1;
+                        initInactive();
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    };
 
 
     @Override
@@ -63,7 +119,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeButtonEnabled(true);
         mDrawerToggle.syncState();
+        isLoaded = -1;
+        mGeocoder = new Geocoder(this);
         vendorState = VendorState.INACTIVE;
+        currentView = loadingLayout;
+        int view = R.layout.loading_layout;
+        swapView(view);
     }
 
 
@@ -79,8 +140,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        allowLocationServices(true);
+        mMap.setOnMyLocationChangeListener(myLocationChangeListener);
+        mMap.setOnCameraChangeListener(myCameraChangeListener);
 
-        // Add a marker in Sydney and move the camera
 
     }
 
@@ -205,4 +268,49 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         parent.addView(currentView, index);
     }
 
+    /** calculates the distance between two locations in MILES */
+    // http://stackoverflow.com/questions/18170131/comparing-two-locations-using-their-longitude-and-latitude
+    private double distance(double lat1, double lng1, double lat2, double lng2) {
+
+        double earthRadius = 3958.75; // in miles, change to 6371 for kilometer output
+        double dLat = Math.toRadians(lat2-lat1);
+        double dLng = Math.toRadians(lng2-lng1);
+        double sindLat = Math.sin(dLat / 2);
+        double sindLng = Math.sin(dLng / 2);
+        double a = Math.pow(sindLat, 2) + Math.pow(sindLng, 2)
+                * Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2));
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double dist = earthRadius * c;
+        return dist; // output distance, in MILES
+    }
+    public void allowLocationServices(boolean allow){
+
+        if(allow) {
+            //enable
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            mMap.setMyLocationEnabled(true);
+        } else {
+            //disable
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            mMap.setMyLocationEnabled(false);
+        }
+    }
 }
