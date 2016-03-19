@@ -69,23 +69,19 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
 
     SharedPreferences mSharedPreferences;
 
-    String first, last, email, phone;
+    String username, email, phone;
 
 
 
     @InjectView(R.id.pictureProfile)
     ImageView profilePicture;
-    @InjectView(R.id.firstNameProfile)
-    EditText firstNameEditText;
-    @InjectView(R.id.lastNameProfile)
-    EditText lastNameEditText;
+    @InjectView(R.id.usernameProfile)
+    EditText usernameProfile;
     @InjectView(R.id.emailProfile)
     EditText emailEditText;
     @InjectView(R.id.phoneProfile)
     EditText phoneEditText;
 
-
-    // @InjectView(R.id.cancelToolbarButton)
     TextView editButton;
 
 
@@ -119,16 +115,15 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     public void initEditable(){
 
         editButton.setText("Save");
-        firstNameEditText.setKeyListener(defaultKeyListener);
-        firstNameEditText.setEnabled(true);
-        lastNameEditText.setKeyListener(defaultKeyListener);
-        lastNameEditText.setEnabled(true);
+        profilePicture.setOnClickListener(this);
+        usernameProfile.setKeyListener(defaultKeyListener);
+        usernameProfile.setEnabled(true);
         emailEditText.setKeyListener(defaultKeyListener);
         emailEditText.setEnabled(true);
         phoneEditText.setKeyListener(defaultKeyListener);
         phoneEditText.setEnabled(true);
 
-        EditText[] fields = {firstNameEditText,lastNameEditText,emailEditText,phoneEditText};
+        EditText[] fields = {usernameProfile,emailEditText,phoneEditText};
 
         for(EditText field:fields){
             if(field.hasFocus()){
@@ -143,22 +138,20 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     public void initNotEditable() {
 
         editButton.setText("Edit");
-        firstNameEditText.setActivated(false);
-        firstNameEditText.setKeyListener(null);
-        firstNameEditText.setEnabled(false);
-        lastNameEditText.setKeyListener(null);
-        lastNameEditText.setEnabled(false);
+        usernameProfile.setActivated(false);
+        usernameProfile.setKeyListener(null);
+        usernameProfile.setEnabled(false);
         emailEditText.setKeyListener(null);
         emailEditText.setEnabled(false);
         phoneEditText.setKeyListener(null);
         phoneEditText.setEnabled(false);
+        profilePicture.setOnClickListener(null);
 
-        first = firstNameEditText.getText().toString();
-        last = lastNameEditText.getText().toString();
+        username = usernameProfile.getText().toString();
         email = emailEditText.getText().toString();
         phone = phoneEditText.getText().toString();
 
-        Log.d("updateVendor", first + " " + last + " " + " " + email + " " + phone);
+        Log.d("updateVendor", username  + " " + " " + email + " " + phone);
         final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Hold on!");
         builder.setMessage("You are requesting to update your profile information. Is all the information correct?");
@@ -167,12 +160,11 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
             public void onClick(DialogInterface dialog, int which) {
                 int userid = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
                 Log.d("updateVendor", "id: " + userid);
-                mEngine.updateVendorInfo(userid, email, first, last, phone, new Callback<Object>() {
+                mEngine.updateVendorInfo(userid, email, username, phone, new Callback<Object>() {
                     @Override
                     public void success(Object o, Response response) {
                         Log.d("updateUser", "success " + o.toString());
-                        mSharedPreferences.edit().putString("FirstName", first).commit();
-                        mSharedPreferences.edit().putString("LastName", last).commit();
+                        mSharedPreferences.edit().putString("Username", username).commit();
                         mSharedPreferences.edit().putString("Email", email).commit();
                         mSharedPreferences.edit().putString("Phone", phone).commit();
 
@@ -213,25 +205,24 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
          profilePicture.setOnClickListener(null);
 
         //should be getting info from server, not shared prefs
-        first = mSharedPreferences.getString("FirstName", "");
-        last = mSharedPreferences.getString("LastName","");
+        username = mSharedPreferences.getString("Username", "");
         email = mSharedPreferences.getString("Email","");
         phone = mSharedPreferences.getString("Phone","");
 
-        firstNameEditText.setText(first);
-        lastNameEditText.setText(last);
+        usernameProfile.setText(username);
         emailEditText.setText(email);
         phoneEditText.setText(phone);
 
 
-        defaultKeyListener = firstNameEditText.getKeyListener();
+
+
+        defaultKeyListener = usernameProfile.getKeyListener();
 
         editButton.setText("Edit");
-        firstNameEditText.setActivated(false);
-        firstNameEditText.setKeyListener(null);
-        firstNameEditText.setEnabled(false);
-        lastNameEditText.setKeyListener(null);
-        lastNameEditText.setEnabled(false);
+        editButton.setVisibility(View.VISIBLE);
+        usernameProfile.setActivated(false);
+        usernameProfile.setKeyListener(null);
+        usernameProfile.setEnabled(false);
         emailEditText.setKeyListener(null);
         emailEditText.setEnabled(false);
         phoneEditText.setKeyListener(null);

@@ -24,7 +24,7 @@ public interface WMWVendorService {
     //1 if successful, 0 if sql error, "Email Exists" if email already exists in the table
     @FormUrlEncoded
     @POST("/updateVendorInfo.php")
-    void updateVendorInfo (@Field("vendorID") int userId,@Field("email") String email, @Field("firstName") String firstName,@Field("lastName")  String lastName, @Field("phone") String phoneNumber, Callback<Object> callback);
+    void updateVendorInfo (@Field("vendorID") int vendorID,@Field("email") String email, @Field("username") String username, @Field("phone") String phoneNumber, Callback<Object> callback);
 
     @FormUrlEncoded
     @POST("/requestTemporaryPasswordForVendor.php")
@@ -33,7 +33,7 @@ public interface WMWVendorService {
     //1 if successful, 0 if sql error
     @FormUrlEncoded
     @POST("/updateVendorPassword.php")
-    void updateVendorPassword (@Field("username") String username, @Field("password") String password,Callback<JSONObject> callback);
+    void updateVendorPassword (@Field("email") String email, @Field("password") String password,Callback<JSONObject> callback);
 
     /*
    [User info] - information about specified user in JSON format. The first JSON element is success:1 to represent a successful login. The second element is isTempPass, which again is a boolean that represents if the user has just reset their password or not.
@@ -41,7 +41,7 @@ public interface WMWVendorService {
     */
     @FormUrlEncoded
     @POST("/requestVendorLogin.php")
-    void requestVendorLogin(@Field("username") String username,@Field("password") String password, Callback<JSONObject> callback);
+    void requestVendorLogin(@Field("email") String email,@Field("password") String password, Callback<JSONObject> callback);
 
     /*
     This should be called by the Vendor when beginning the wash. If successful, this will return to you a unique transactionID.

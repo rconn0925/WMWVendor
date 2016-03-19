@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.CountDownTimer;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
@@ -22,8 +23,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -39,7 +42,7 @@ import java.util.List;
 import butterknife.ButterKnife;
 import butterknife.InjectView;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, AdapterView.OnItemClickListener {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, AdapterView.OnItemClickListener, View.OnClickListener {
 
     private GoogleMap mMap;
     private SupportMapFragment mapFragment;
@@ -52,8 +55,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LatLng currentLocation;
     private Geocoder mGeocoder;
     private int isLoaded;
+    private boolean hasAccepted;
+    private CountDownTimer mCountDownTimer;
 
 
+    Button startAccepting;
+    Button stopAccepting;
+    Button acceptRequest;
+    Button contactNavigation;
+    Button beginNavigation;
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
     @InjectView(R.id.mDrawerLayout)
@@ -62,11 +72,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     ListView navDrawerList;
     @InjectView(R.id.loadingLayout)
     RelativeLayout loadingLayout;
+    @InjectView(R.id.cancelToolbarButton)
+    TextView editButton;
+
 
     private GoogleMap.OnMyLocationChangeListener myLocationChangeListener = new GoogleMap.OnMyLocationChangeListener() {
         @Override
         public void onMyLocationChange(Location location) {
-            LatLng loc = new LatLng(location.getLatitude(),location.getLongitude());;
+            LatLng loc = new LatLng(location.getLatitude(),location.getLongitude());
             if(currentLocation!=null && mMap!=null){
                 //Only force a camera update if user has traveled 0.1 miles from last location
                 if(distance(currentLocation.latitude,currentLocation.longitude,loc.latitude,loc.longitude)>0.1){
@@ -125,6 +138,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         currentView = loadingLayout;
         int view = R.layout.loading_layout;
         swapView(view);
+
     }
 
 
@@ -183,6 +197,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if(position == 0){
 
             addCurrentStateView();
+            editButton = (TextView) findViewById(R.id.cancelToolbarButton);
+            editButton.setVisibility(View.GONE);
             currentFragment = new Fragment();
             mapFragment.getView().setVisibility(View.VISIBLE);
 
@@ -244,14 +260,50 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initActive() {
+        int view = R.layout.active_layout;
+        swapView(view);
+        stopAccepting = (Button) findViewById(R.id.stopAccepting);
+        stopAccepting.setOnClickListener(this);
     }
     private void initInactive() {
         int view = R.layout.inactive_layout;
         swapView(view);
+        startAccepting = (Button) findViewById(R.id.startAccepting);
+        startAccepting.setOnClickListener(this);
+
     }
     private void initRequesting() {
+        int view = R.layout.requesting_layout;
+        swapView(view);
+        acceptRequest = (Button) findViewById(R.id.acceptRequest);
+        acceptRequest.setOnClickListener(this);
+
+        final TextView timer = (TextView) findViewById(R.id.progressText);
+        hasAccepted = false;
+        mCountDownTimer = new CountDownTimer(30000,1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                timer.setText(""+millisUntilFinished / 1000);
+
+            }
+
+            @Override
+            public void onFinish() {
+                if(!hasAccepted){
+                    initInactive();
+                }
+
+            }
+        };
+        mCountDownTimer.start();
     }
     private void initNavigating() {
+        int view = R.layout.navigation_layout;
+        swapView(view);
+        beginNavigation = (Button) findViewById(R.id.beginNavigation);
+        beginNavigation.setOnClickListener(this);
+        contactNavigation = (Button) findViewById(R.id.contactNavigation);
+        contactNavigation.setOnClickListener(this);
     }
     private void initArrived() {
     }
@@ -314,6 +366,33 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return;
             }
             mMap.setMyLocationEnabled(false);
+        }
+    }
+
+    @Override
+    public void onClick(View v) {
+        if(v.getId() == startAccepting.getId()){
+            startAccepting.setOnClickListener(null);
+            initActive();
+
+        } else if (v.getId() == stopAccepting.getId()) {
+            stopAccepting.setOnClickListener(null);
+           // initInactive();
+            initRequesting();
+        } else if (v.getId() == acceptRequest.getId()) {
+            stopAccepting.setOnClickListener(null);
+            if(mCountDownTimer!=null){
+                mCountDownTimer.cancel();
+            }
+            hasAccepted = true;
+            initNavigating();
+        } else if (v.getId() == beginNavigation.getId()) {
+            beginNavigation.setOnClickListener(null);
+            // LAUNCH GOOGLE MAPS with current location and user location (sent from server)
+
+        } else if (v.getId() == contactNavigation.getId()) {
+            contactNavigation.setOnClickListener(null);
+            //CALL USER
         }
     }
 }

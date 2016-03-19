@@ -38,29 +38,19 @@ android:id="@+id/profileFragment">
                 android:onClick="onClick"
                 android:scaleType="fitXY" />
 
-            <LinearLayout
-                android:layout_width="wrap_content"
+
+
+            <EditText
+                android:layout_width="200dp"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <EditText
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/firstNameProfile"
-                    android:background="@drawable/rounded_corner"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/black"/>
-
-                <EditText
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/lastNameProfile"
-                    android:background="@drawable/rounded_corner"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/black"/>
+                android:id="@+id/usernameProfile"
+                android:background="@drawable/rounded_corner"
+                android:textColor="@color/black"
+                android:layout_gravity="center_vertical"
+                android:singleLine="true"/>
 
 
-            </LinearLayout>
+
         </LinearLayout>
 
         <TextView
@@ -75,7 +65,8 @@ android:id="@+id/profileFragment">
             android:id="@+id/emailProfile"
             android:background="@drawable/rounded_corner"
             android:layout_marginTop="4dp"
-            android:textColor="@color/black"/>
+            android:textColor="@color/black"
+            android:singleLine="true"/>
 
         <EditText
             android:layout_width="300dp"
@@ -83,7 +74,8 @@ android:id="@+id/profileFragment">
             android:id="@+id/phoneProfile"
             android:background="@drawable/rounded_corner"
             android:layout_marginTop="4dp"
-            android:textColor="@color/black"/>
+            android:textColor="@color/black"
+            android:singleLine="true"/>
 
     </LinearLayout>
 

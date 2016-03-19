@@ -12,13 +12,10 @@
     <Button
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/start"
-        android:layout_alignParentTop="true"/>
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/stop"
+        android:id="@+id/startAccepting"
+        android:background="@drawable/rounded_corner_blue"
+        android:textColor="@color/white"
+        android:text="START ACCEPTING REQUESTS"
         android:layout_alignParentBottom="true"/>
 
 </RelativeLayout>

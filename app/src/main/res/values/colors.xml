@@ -9,4 +9,5 @@
     <color name="holo_light">#fff3f3f3</color>
     <color name="black">#000000</color>
     <color name="translucent_black">#80000000</color>
+    <color name="red">#FF2800</color>
 </resources>

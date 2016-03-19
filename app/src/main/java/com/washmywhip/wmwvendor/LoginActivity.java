@@ -83,7 +83,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
                 if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_NULL) {
-                 //   attemptLogin();
+                    attemptLogin();
                     return true;
                 }
                 return false;
@@ -154,7 +154,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 public void success(JSONObject jsonObject, Response response) {
                     Log.d("THUGLYFE", "successful VENDOR login");
                     SharedPreferences.Editor prefsEditor = mSharedPreferences.edit();
-                    prefsEditor.putString("username", mUsernameView.getText().toString()).apply();
+                    prefsEditor.putString("email", mUsernameView.getText().toString()).apply();
                     prefsEditor.putString("password", mPasswordView.getText().toString()).apply();
                     //Try to get response body
                     String responseString = new String(((TypedByteArray) response.getBody()).getBytes());
@@ -167,6 +167,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     userInfo = parseResponse(responseString);
                     //if response tempPass = 1, prompt user for new password
                     String resetPass = (String) userInfo.get("isTempPass");
+                    //String resetPass = "1";
                     if (resetPass.equals("1")) {
                         //prompt reset
                         Log.d("RESETPASS", "YO DAWG! RESET YO PASSWORD!");
@@ -280,10 +281,8 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onClick(View v) {
         if(v.getId() == logIn.getId()) {
-          //  attemptLogin();
-            Intent login = new Intent(this,MainActivity.class);
-            startActivity(login);
-            finish();
+            attemptLogin();
+
 
         } else if(v.getId() == forgotPassword.getId()){
             Intent forgotPass = new Intent(this,ForgotPasswordActivity.class);

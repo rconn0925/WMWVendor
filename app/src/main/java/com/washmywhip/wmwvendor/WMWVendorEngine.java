@@ -20,7 +20,7 @@ public class WMWVendorEngine {
         OkClient okclient = new OkClient(okhttpclient);
 
         RestAdapter.Builder builder =  new RestAdapter.Builder()
-                .setEndpoint("http://www.ryanserkes.com/WashMyWhip/")
+                .setEndpoint("http://www.WashMyWhip.us/wmwapp")
                 .setLogLevel(RestAdapter.LogLevel.FULL)
                 .setClient(okclient);
 
@@ -28,8 +28,8 @@ public class WMWVendorEngine {
         mService = adapter.create(WMWVendorService.class);
     }
 
-    public void updateVendorInfo(int vendorID, String email, String firstName, String lastName, String phoneNumber, Callback<Object> callback) {
-        mService.updateVendorInfo(vendorID, email, firstName, lastName, phoneNumber, callback);
+    public void updateVendorInfo(int vendorID, String email, String username, String phoneNumber, Callback<Object> callback) {
+        mService.updateVendorInfo(vendorID, email, username, phoneNumber, callback);
     }
     public void getVendorWithID(int vendorID, Callback<Object> callback) {
         mService.getVendorWithID(vendorID, callback);
@@ -37,11 +37,11 @@ public class WMWVendorEngine {
     public void requestTemporaryPasswordForVendor(String email, Callback<JSONObject> callback) {
         mService.requestTemporaryPasswordForVendor(email, callback);
     }
-    public void updateVendorPassword(String username,String password, Callback<JSONObject> callback) {
-        mService.updateVendorPassword(username, password, callback);
+    public void updateVendorPassword(String email,String password, Callback<JSONObject> callback) {
+        mService.updateVendorPassword(email, password, callback);
     }
-    public void requestVendorLogin(String username,String password, Callback<JSONObject> callback) {
-        mService.requestVendorLogin(username, password, callback);
+    public void requestVendorLogin(String email,String password, Callback<JSONObject> callback) {
+        mService.requestVendorLogin(email, password, callback);
     }
     public void createTransaction(int userID,int vendorID,int carID, int washType,int cost,Callback<JSONObject> callback) {
         mService.createTransaction(userID, vendorID, carID, washType, cost, callback);
