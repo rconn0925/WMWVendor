@@ -59,11 +59,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private CountDownTimer mCountDownTimer;
 
 
-    Button startAccepting;
-    Button stopAccepting;
-    Button acceptRequest;
-    Button contactNavigation;
-    Button beginNavigation;
+    private Button startAccepting;
+    private Button stopAccepting;
+    private Button acceptRequest;
+    private Button contactNavigation;
+    private Button beginNavigation;
+    private Button takeBeforePictureArrived;
+    private Button beginWashArrived;
+    private Button takeAfterPictureWashing;
+    private Button completeWashWashing;
+    private Button finalizingSubmit;
+    private TextView callContact;
+    private TextView textContact;
+    private TextView doneContact;
+    private View contactView;
+
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
     @InjectView(R.id.mDrawerLayout)
@@ -114,6 +124,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
     };
+
 
 
     @Override
@@ -306,11 +317,63 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         contactNavigation.setOnClickListener(this);
     }
     private void initArrived() {
+        int view = R.layout.arrived_layout;
+        swapView(view);
+        takeBeforePictureArrived = (Button) findViewById(R.id.arrivedBeforePicture);
+        takeBeforePictureArrived.setOnClickListener(this);
+
+        beginWashArrived = (Button) findViewById(R.id.arrivedBeginWash);
+        beginWashArrived.setOnClickListener(this);
+
+
     }
     private void initWashing() {
+        int view = R.layout.washing_layout;
+        swapView(view);
+        takeAfterPictureWashing = (Button) findViewById(R.id.washingAfterPicture);
+        takeAfterPictureWashing.setOnClickListener(this);
+
+        completeWashWashing = (Button) findViewById(R.id.washingCompleteWash);
+        completeWashWashing.setOnClickListener(this);
     }
     private void initFinalizing() {
+        int view = R.layout.finalizing_layout;
+        swapView(view);
+        finalizingSubmit = (Button) findViewById(R.id.finalizingSubmitButton);
+        finalizingSubmit.setOnClickListener(this);
     }
+
+    private void initContact() {
+        int view = R.layout.contact_layout;
+        ViewGroup parent = (ViewGroup) currentView.getParent();
+        contactView = getLayoutInflater().inflate(view, parent, false);
+        parent.addView(contactView);
+        textContact = (TextView) findViewById(R.id.contactText);
+        textContact.setOnClickListener(this);
+        callContact = (TextView) findViewById(R.id.contactCall);
+        callContact.setOnClickListener(this);
+        doneContact = (TextView) findViewById(R.id.contactDone);
+        doneContact.setOnClickListener(this);
+
+
+        //background cant be clicked
+        beginNavigation.setOnClickListener(null);
+        contactNavigation.setOnClickListener(null);
+
+
+    }
+
+    public void removeContact(){
+        //int view = R.layout.contact_layout;
+        ViewGroup parent = (ViewGroup) currentView.getParent();
+       // int index = parent.indexOfChild(contactView);
+        parent.removeView(contactView);
+
+        //background can be clicked
+        beginNavigation.setOnClickListener(this);
+        contactNavigation.setOnClickListener(this);
+    }
+
 
     public void swapView(int v) {
         Log.d("TEST", "swapView");
@@ -371,28 +434,63 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onClick(View v) {
-        if(v.getId() == startAccepting.getId()){
+        if(startAccepting!=null &&v.getId() == startAccepting.getId()){
             startAccepting.setOnClickListener(null);
             initActive();
 
-        } else if (v.getId() == stopAccepting.getId()) {
+        } else if (stopAccepting!=null &&v.getId() == stopAccepting.getId()) {
             stopAccepting.setOnClickListener(null);
            // initInactive();
             initRequesting();
-        } else if (v.getId() == acceptRequest.getId()) {
+        } else if (acceptRequest!=null &&v.getId() == acceptRequest.getId()) {
             stopAccepting.setOnClickListener(null);
             if(mCountDownTimer!=null){
                 mCountDownTimer.cancel();
             }
             hasAccepted = true;
             initNavigating();
-        } else if (v.getId() == beginNavigation.getId()) {
+        } else if (beginNavigation!=null &&v.getId() == beginNavigation.getId()) {
             beginNavigation.setOnClickListener(null);
             // LAUNCH GOOGLE MAPS with current location and user location (sent from server)
+            initArrived();
 
-        } else if (v.getId() == contactNavigation.getId()) {
+        } else if (contactNavigation!=null &&v.getId() == contactNavigation.getId()) {
             contactNavigation.setOnClickListener(null);
-            //CALL USER
+            //CALL/TEXT USER
+           initContact();
+        } else if (beginWashArrived!=null &&v.getId() == beginWashArrived.getId()) {
+            beginWashArrived.setOnClickListener(null);
+            initWashing();
+
+        } else if (takeBeforePictureArrived!=null &&v.getId() == takeBeforePictureArrived.getId()) {
+            takeBeforePictureArrived.setOnClickListener(null);
+
+        } else if (completeWashWashing!=null &&v.getId() == completeWashWashing.getId()) {
+            completeWashWashing.setOnClickListener(null);
+            initFinalizing();
+
+        } else if (takeAfterPictureWashing!=null &&v.getId() == takeAfterPictureWashing.getId()) {
+            takeAfterPictureWashing.setOnClickListener(null);
+
+        } else if (finalizingSubmit!=null &&v.getId() == finalizingSubmit.getId()) {
+            finalizingSubmit.setOnClickListener(null);
+            initInactive();
+
+        } else if (callContact!=null &&v.getId() == callContact.getId()) {
+            callContact.setOnClickListener(null);
+            Log.d("MAIN ACTIVITY", "call pressed");
+            //call user
+
+        } else if (textContact!=null &&v.getId() == textContact.getId()) {
+            textContact.setOnClickListener(null);
+            Log.d("MAIN ACTIVITY", "text pressed");
+            //text user
+
+        } else if (doneContact!=null &&v.getId() == doneContact.getId()) {
+            doneContact.setOnClickListener(null);
+            Log.d("MAIN ACTIVITY","done pressed");
+            removeContact();
+
         }
     }
 }
