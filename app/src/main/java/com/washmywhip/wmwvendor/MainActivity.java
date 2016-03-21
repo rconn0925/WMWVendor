@@ -1,16 +1,23 @@
 package com.washmywhip.wmwvendor;
 
 import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.net.Uri;
 import android.os.CountDownTimer;
 import android.preference.PreferenceManager;
+import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -21,10 +28,13 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.RatingBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -35,6 +45,8 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.io.IOException;
 import java.util.List;
@@ -73,6 +85,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private TextView textContact;
     private TextView doneContact;
     private View contactView;
+    private RatingBar ratingBar;
+    private EditText finalizingComments;
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -89,10 +103,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap.OnMyLocationChangeListener myLocationChangeListener = new GoogleMap.OnMyLocationChangeListener() {
         @Override
         public void onMyLocationChange(Location location) {
-            LatLng loc = new LatLng(location.getLatitude(),location.getLongitude());
-            if(currentLocation!=null && mMap!=null){
+            LatLng loc = new LatLng(location.getLatitude(), location.getLongitude());
+            if (currentLocation != null && mMap != null) {
                 //Only force a camera update if user has traveled 0.1 miles from last location
-                if(distance(currentLocation.latitude,currentLocation.longitude,loc.latitude,loc.longitude)>0.1){
+                if (distance(currentLocation.latitude, currentLocation.longitude, loc.latitude, loc.longitude) > 0.1) {
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 16.0f));
                     currentLocation = loc;
                 }
@@ -125,7 +139,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     };
 
+    private GoogleMap.OnMapClickListener myMapClickListener = new GoogleMap.OnMapClickListener() {
+        @Override
+        public void onMapClick(LatLng latLng) {
+            Log.d("MAIN", "clearing focus on finalizingComments");
+            if(finalizingComments!=null&&finalizingComments.hasFocus()){
+                Log.d("MAIN", "finalizingComments has focus");
+                hideKeyboard(finalizingComments);
+            }
+        }
+    };
 
+    public void hideKeyboard(View view) {
+        InputMethodManager inputMethodManager =(InputMethodManager)getSystemService(Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(view.getWindowToken(), 0);
+    }
+    public void showKeyboard(View view) {
+        InputMethodManager inputMethodManager =(InputMethodManager)getSystemService(Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -170,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.getUiSettings().setMyLocationButtonEnabled(false);
         mMap.setOnMyLocationChangeListener(myLocationChangeListener);
         mMap.setOnCameraChangeListener(myCameraChangeListener);
-
+        mMap.setOnMapClickListener(myMapClickListener);
 
 
     }
@@ -205,7 +237,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-        if(position == 0){
+        if (position == 0) {
 
             addCurrentStateView();
             editButton = (TextView) findViewById(R.id.cancelToolbarButton);
@@ -213,17 +245,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             currentFragment = new Fragment();
             mapFragment.getView().setVisibility(View.VISIBLE);
 
-        } else if (position==1){
+        } else if (position == 1) {
             Log.d("TEST", "PROFILE");
             currentFragment = ProfileFragment.newInstance();
             mapFragment.getView().setVisibility(View.INVISIBLE);
             removeCurrentStateView();
-        } else if (position==2){
+        } else if (position == 2) {
             Log.d("TEST", "PAYMENT");
             //currentFragment = About.newInstance();
             mapFragment.getView().setVisibility(View.INVISIBLE);
             removeCurrentStateView();
-        } else if (position==3){
+        } else if (position == 3) {
             Log.d("TEST", "LogOut");
             //log out
             attemptLogout();
@@ -231,7 +263,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Insert the fragment by replacing any existing fragment
         FragmentManager fragmentManager = getFragmentManager();
-        if(currentFragment!=null){
+        if (currentFragment != null) {
             fragmentManager.beginTransaction().replace(R.id.contentFrame, currentFragment).commit();
         }
         // Highlight the selected item, update the title, and close the drawer
@@ -245,25 +277,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void attemptLogout() {
         mSharedPreferences.edit().clear().commit();
-        Intent i = new Intent(this,LoginActivity.class);
+        Intent i = new Intent(this, LoginActivity.class);
         startActivity(i);
         finish();
     }
 
     private void addCurrentStateView() {
-        if(vendorState==VendorState.INACTIVE){
+        if (vendorState == VendorState.INACTIVE) {
             initInactive();
-        } else if(vendorState == VendorState.ACTIVE) {
+        } else if (vendorState == VendorState.ACTIVE) {
             initActive();
-        } else if(vendorState == VendorState.REQUESTING) {
+        } else if (vendorState == VendorState.REQUESTING) {
             initRequesting();
-        } else if(vendorState == VendorState.NAVIGATING) {
+        } else if (vendorState == VendorState.NAVIGATING) {
             initNavigating();
-        } else if(vendorState == VendorState.ARRIVED) {
+        } else if (vendorState == VendorState.ARRIVED) {
             initArrived();
-        } else if(vendorState == VendorState.WASHING) {
+        } else if (vendorState == VendorState.WASHING) {
             initWashing();
-        } else if(vendorState == VendorState.FINALIZING) {
+        } else if (vendorState == VendorState.FINALIZING) {
             initFinalizing();
         }
         //current view is set within the init state view
@@ -276,6 +308,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         stopAccepting = (Button) findViewById(R.id.stopAccepting);
         stopAccepting.setOnClickListener(this);
     }
+
     private void initInactive() {
         int view = R.layout.inactive_layout;
         swapView(view);
@@ -283,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         startAccepting.setOnClickListener(this);
 
     }
+
     private void initRequesting() {
         int view = R.layout.requesting_layout;
         swapView(view);
@@ -291,16 +325,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         final TextView timer = (TextView) findViewById(R.id.progressText);
         hasAccepted = false;
-        mCountDownTimer = new CountDownTimer(30000,1000) {
+        mCountDownTimer = new CountDownTimer(30000, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
-                timer.setText(""+millisUntilFinished / 1000);
+                timer.setText("" + millisUntilFinished / 1000);
 
             }
 
             @Override
             public void onFinish() {
-                if(!hasAccepted){
+                if (!hasAccepted) {
                     initInactive();
                 }
 
@@ -308,6 +342,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         };
         mCountDownTimer.start();
     }
+
     private void initNavigating() {
         int view = R.layout.navigation_layout;
         swapView(view);
@@ -315,7 +350,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         beginNavigation.setOnClickListener(this);
         contactNavigation = (Button) findViewById(R.id.contactNavigation);
         contactNavigation.setOnClickListener(this);
+        LatLng destination = null;
+        //createRoute(destination);
     }
+
     private void initArrived() {
         int view = R.layout.arrived_layout;
         swapView(view);
@@ -327,6 +365,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     }
+
     private void initWashing() {
         int view = R.layout.washing_layout;
         swapView(view);
@@ -336,11 +375,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         completeWashWashing = (Button) findViewById(R.id.washingCompleteWash);
         completeWashWashing.setOnClickListener(this);
     }
+
     private void initFinalizing() {
         int view = R.layout.finalizing_layout;
         swapView(view);
         finalizingSubmit = (Button) findViewById(R.id.finalizingSubmitButton);
         finalizingSubmit.setOnClickListener(this);
+
+        ratingBar = (RatingBar) findViewById(R.id.finalizingRating);
+        finalizingComments = (EditText) findViewById(R.id.finalizingComments);
+
     }
 
     private void initContact() {
@@ -363,10 +407,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    public void removeContact(){
+    public void removeContact() {
         //int view = R.layout.contact_layout;
         ViewGroup parent = (ViewGroup) currentView.getParent();
-       // int index = parent.indexOfChild(contactView);
+        // int index = parent.indexOfChild(contactView);
         parent.removeView(contactView);
 
         //background can be clicked
@@ -374,6 +418,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         contactNavigation.setOnClickListener(this);
     }
 
+    public void contactCallUser() {
+        String userNumber = "2039215412";
+        Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + userNumber));
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        startActivity(intent);
+
+
+    }
+    public void contactTextUser(){
+        String number = "2039215412";  // The number on which you want to send SMS
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.fromParts("sms", number, null)));
+
+    }
 
     public void swapView(int v) {
         Log.d("TEST", "swapView");
@@ -384,6 +450,71 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         //updates currentView
         currentView = getLayoutInflater().inflate(view, parent, false);
         parent.addView(currentView, index);
+    }
+
+    public void createRoute(LatLng destination){
+        Polyline line = mMap.addPolyline(new PolylineOptions()
+                .add(currentLocation, destination)
+                .width(5)
+                .color(R.color.blue));
+
+    }
+
+    public void takeBeforePicture(){
+
+    }
+    public void takeAfterPicture(){
+
+    }
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+        if(data!=null) {
+            Log.d("BLAHBLAH", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
+            super.onActivityResult(requestCode, resultCode, data);
+
+            if (requestCode == 0||requestCode==1) {
+                Uri photoUri = data.getData();
+                Log.d("BLAHBLAH", "uri: " + photoUri.toString());
+                //Bitmap photo = (Bitmap) data.getExtras().get("data");
+                Bitmap selectedImage = null;
+                try {
+                    selectedImage = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                //DO SERVER STUFF?
+                //SCALE IMAGE DOWN
+                // profilePicture.setImageBitmap(selectedImage);
+            }
+        }
+    }
+
+    private void selectImage() {
+        final CharSequence[] items = { "Take Photo", "Choose from Library", "Cancel" };
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add Photo!");
+        builder.setItems(items, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int item) {
+                if (items[item].equals("Take Photo")) {
+                    Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                    //0 is request code
+                    startActivityForResult(intent, 0);
+                } else if (items[item].equals("Choose from Library")) {
+                    Intent intent = new Intent(
+                            Intent.ACTION_PICK,
+                            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                    intent.setType("image/*");
+
+                    startActivityForResult(
+                            Intent.createChooser(intent, "Select File"), 1);
+                } else if (items[item].equals("Cancel")) {
+                    dialog.dismiss();
+                }
+            }
+        });
+        builder.show();
     }
 
     /** calculates the distance between two locations in MILES */
@@ -452,6 +583,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else if (beginNavigation!=null &&v.getId() == beginNavigation.getId()) {
             beginNavigation.setOnClickListener(null);
             // LAUNCH GOOGLE MAPS with current location and user location (sent from server)
+
+
+
+
             initArrived();
 
         } else if (contactNavigation!=null &&v.getId() == contactNavigation.getId()) {
@@ -474,16 +609,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         } else if (finalizingSubmit!=null &&v.getId() == finalizingSubmit.getId()) {
             finalizingSubmit.setOnClickListener(null);
+            int rating = ratingBar.getProgress();
+            String comments = finalizingComments.getText().toString();
+            Log.d("finalizingSubmit","comments: "+ comments+ ", numstars: "+ rating);
+            hideKeyboard(finalizingComments);
             initInactive();
 
         } else if (callContact!=null &&v.getId() == callContact.getId()) {
             callContact.setOnClickListener(null);
+            removeContact();
+            contactCallUser();
             Log.d("MAIN ACTIVITY", "call pressed");
             //call user
 
         } else if (textContact!=null &&v.getId() == textContact.getId()) {
             textContact.setOnClickListener(null);
             Log.d("MAIN ACTIVITY", "text pressed");
+            removeContact();
+            contactTextUser();
             //text user
 
         } else if (doneContact!=null &&v.getId() == doneContact.getId()) {

@@ -49,7 +49,7 @@ public class WMWVendorEngine {
     public void completeTransaction(int transactionID,int duration,Callback<JSONObject> callback) {
         mService.completeTransaction(transactionID, duration, callback);
     }
-    public void rateUser(int transactionID,int rating,String comments,Callback<JSONObject> callback) {
+    public void rateUser(int transactionID,int rating,String comments,Callback<String> callback) {
         mService.rateUser(transactionID, rating,comments, callback);
     }
 

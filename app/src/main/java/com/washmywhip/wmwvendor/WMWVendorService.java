@@ -55,10 +55,10 @@ public interface WMWVendorService {
 
     //last parameter image?
     @FormUrlEncoded
-    @POST("/createTransaction.php")
+    @POST("/completeTransaction.php")
     void completeTransaction(@Field("transactionID") int transactionID,@Field("duration") int duration, Callback<JSONObject> callback);
 
     @FormUrlEncoded
-    @POST("/createTransaction.php")
-    void rateUser(@Field("transactionID") int transactionID,@Field("rating") int rating,@Field("comments") String comments, Callback<JSONObject> callback);
+    @POST("/rateUser.php")
+    void rateUser(@Field("transactionID") int transactionID,@Field("rating") int rating,@Field("comments") String comments, Callback<String> callback);
 }
