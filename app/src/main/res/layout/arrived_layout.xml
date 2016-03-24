@@ -29,9 +29,11 @@
             android:layout_alignParentTop="true"
             android:id="@+id/topLayout"
             android:gravity="center_horizontal">
-            <ImageView
+            <de.hdodenhof.circleimageview.CircleImageView
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:id="@+id/arrivedUserPicture"
+                android:background="@drawable/picture"/>
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -110,7 +112,7 @@
             android:text="BEGIN WASH"
             android:id="@+id/arrivedBeginWash"
             android:textColor="@color/white"
-            android:background="@drawable/rounded_corner_blue"/>
+            android:background="@drawable/rounded_corner_grey"/>
 
 
 

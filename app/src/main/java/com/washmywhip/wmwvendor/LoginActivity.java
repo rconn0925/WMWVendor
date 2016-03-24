@@ -160,6 +160,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     String responseString = new String(((TypedByteArray) response.getBody()).getBytes());
 
 
+
                     Log.d("BIG PIMPING", responseString);
 
                     Map<String, String> userInfo = new HashMap<String, String>();

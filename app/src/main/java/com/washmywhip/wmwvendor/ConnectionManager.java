@@ -1,9 +1,11 @@
 package com.washmywhip.wmwvendor;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -23,10 +25,12 @@ public class ConnectionManager {
 
     private String mAddress;
     private Socket mSocket;
-    private int userID;
+    private String vendorID;
     private String deviceID;
     SharedPreferences mSharedPreferences;
     private String transactionID;
+    private boolean isListening;
+    private Context mContext;
     //transaction ID???
 
     public ConnectionManager(Context context) {
@@ -35,8 +39,9 @@ public class ConnectionManager {
         // SocketIO socket =new SocketIO();
         deviceID = Settings.Secure.getString(context.getContentResolver(),
                 Settings.Secure.ANDROID_ID);
-        userID = Integer.parseInt(mSharedPreferences.getString("UserID", "-1"));
+        vendorID = mSharedPreferences.getString("VendorID", "-1");
         Log.d("server connection", "response?: " + deviceID);
+        mContext = context;
 
         try {
             // mAddress = "http://192.168.0.18:3000";
@@ -53,9 +58,13 @@ public class ConnectionManager {
             mSocket.on("addVendorConfirmation", new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
-                    Log.d("server connection", "onAddUser");
+                    Log.d("server connection", "addVendorConfirmation");
                     if (args != null && args.length > 0) {
-                        Log.d("server connection", "onAddUser staus: " + args[0].toString());
+                        Log.d("server connection", "addVendorConfirmation staus: " + args[0].toString());
+                        Intent intent = new Intent();
+                        intent.putExtra("state", args[0].toString());
+                        intent.setAction("com.android.activity.SEND_DATA");
+                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
                     }
                 }
             }).on("startListeningConfirmation", new Emitter.Listener() {
@@ -78,19 +87,54 @@ public class ConnectionManager {
                 @Override
                 public void call(Object... args) {
                     Log.d("server connection", "requestCanceled");
-                    if (args != null && args.length > 0) {
-                        Log.d("server connection", "requestCanceled staus: " + args[0].toString());
-                    }
+                    Intent intent = new Intent();
+                    intent.putExtra("requestCancel","true");
+                    intent.setAction("com.android.activity.SEND_DATA");
+                    LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
                 }
             }).on("washRequested", new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
                     Log.d("server connection", "washRequested");
                     if (args != null && args.length > 0) {
-                        Log.d("server connection", "washRequested staus: " + args[0].toString());
+                        Log.d("server connection", "washRequested staus: userID=" + args[0].toString()+", location="+ args[1].toString()+", carID="+ args[2].toString()+", washType="+ args[3].toString());
+                        //init requesting
+                        Intent intent = new Intent();
+                        intent.putExtra("userInfo", args[0].toString()+", "+ args[1].toString()+", "+ args[2].toString()+", "+ args[3].toString());
+                        intent.setAction("com.android.activity.SEND_DATA");
+                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
                     }
                 }
+            }).on(Socket.EVENT_CONNECT, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    Log.d("server connection", "onConnect");
+                    if (args != null) {
+                        Log.d("server connection", "onConnect: " + args.length);
+                        addVendor();
+                    }
+                }
+            }).on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    String response = (String)args[0];
+                    Log.d("server connection", "onDisconnect: "+ response);
+                }
+            }).on(Socket.EVENT_CONNECT_ERROR, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+
+                    Log.d("server connection", "onConnectionError: ");
+                }
+            }).on(Socket.EVENT_ERROR, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    // String response = (String) args[0];
+                    Log.d("server connection", "onError: ");
+                }
             });
+            Log.d("server connection", "attempting to connect...");
+            mSocket.connect();
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -98,9 +142,8 @@ public class ConnectionManager {
 
     public void addVendor(){
         Log.d("server connection", "addVEndor server: "+ mSocket.connected());
-        String vendorIDstring =Integer.toString(userID);
         //empty string place holder for device
-        String[] data = {vendorIDstring,""};
+        String[] data = {vendorID,""};
         if(mSocket.connected()){
             mSocket.emit("addVendor", data);
         }
@@ -108,28 +151,33 @@ public class ConnectionManager {
     //how is data sent??
     public void startListening(LatLng mLocation){
         Log.d("server connection", "startListening server: "+ mSocket.connected());
-        double[] data = {mLocation.latitude,mLocation.longitude};
+        String location = mLocation.latitude + ", "+mLocation.longitude;
         if(mSocket.connected()){
-            mSocket.emit("startListening", data);
+            mSocket.emit("startListening", location);
+            isListening = true;
         }
     }
     public void stopListening(){
         Log.d("server connection", "stopListening server: "+ mSocket.connected());
         if(mSocket.connected()){
-            mSocket.emit("startListening", "");
+            mSocket.emit("stopListening", "");
+            isListening = false;
         }
     }
-    public void acceptRequest(){
+    public void acceptRequest(LatLng mLocation){
         Log.d("server connection", "acceptRequest server: "+ mSocket.connected());
+        String location = mLocation.latitude + ", "+mLocation.longitude;
+        String[] data = {vendorID,location};
         if(mSocket.connected()){
-            mSocket.emit("acceptRequest", "");
+            mSocket.emit("acceptRequest", data);
         }
     }
     public void updateETA(LatLng mLocation){
         Log.d("server connection", "updateETA server: "+ mSocket.connected());
-        double[] data = {mLocation.latitude,mLocation.longitude};
+        String location = mLocation.latitude + ", "+mLocation.longitude;
+        Log.d("server connection", "updateETA coordinates: "+ location);
         if(mSocket.connected()){
-            mSocket.emit("updateETA", data);
+            mSocket.emit("updateETA", location);
         }
     }
     public void vendorHasArrived(){
@@ -171,4 +219,5 @@ public class ConnectionManager {
     public boolean isConnected(){
         return mSocket.connected();
     }
+    public boolean isListening() {return isListening;}
 }

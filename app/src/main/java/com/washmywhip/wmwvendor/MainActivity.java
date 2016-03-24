@@ -5,10 +5,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.location.Address;
@@ -16,15 +20,18 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
 import android.os.CountDownTimer;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -38,21 +45,60 @@ import android.widget.RatingBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.gson.JsonObject;
+import com.koushikdutta.async.future.FutureCallback;
+import com.koushikdutta.ion.Ion;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+import com.squareup.picasso.Picasso;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
+import cz.msebera.android.httpclient.Header;
+import cz.msebera.android.httpclient.HttpEntity;
+import cz.msebera.android.httpclient.HttpResponse;
+import cz.msebera.android.httpclient.HttpVersion;
+import cz.msebera.android.httpclient.client.HttpClient;
+import cz.msebera.android.httpclient.client.methods.HttpPost;
+import cz.msebera.android.httpclient.entity.mime.content.ContentBody;
+import cz.msebera.android.httpclient.entity.mime.content.FileBody;
+import cz.msebera.android.httpclient.impl.client.DefaultHttpClient;
+import cz.msebera.android.httpclient.params.CoreProtocolPNames;
+import cz.msebera.android.httpclient.util.EntityUtils;
+import de.hdodenhof.circleimageview.CircleImageView;
+import retrofit.Callback;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import retrofit.mime.TypedByteArray;
+import retrofit.mime.TypedFile;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, AdapterView.OnItemClickListener, View.OnClickListener {
 
@@ -69,6 +115,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private int isLoaded;
     private boolean hasAccepted;
     private CountDownTimer mCountDownTimer;
+    private CountDownTimer updateETAtimer;
+    private Polyline mRoute;
+    private WMWVendorEngine mWMWVendorEngine;
+    private ConnectionManager mConnectionManager;
+    private Marker end;
+    private Marker start;
+    private static final int BEFORE_REQUEST = 1647;
+    private static final int AFTER_REQUEST = 2469;
+    private static final int PROFILE_REQUEST = 3821;
 
 
     private Button startAccepting;
@@ -87,6 +142,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private View contactView;
     private RatingBar ratingBar;
     private EditText finalizingComments;
+    private TextView userFullName;
+    private Context mContext;
+    private CircleImageView userCarImage;
+
+    private BroadcastReceiver mMessageReceiver;
+    private LatLng userLocation;
+    private int transactionCost;
+    private String transactionID;
+    private String encodedBefore;
+    private String encodedAfter;
+    private String encodedProfile;
+    private TypedFile beforeImage;
+    private File beforeFile;
+    private TypedFile afterImage;
+    private TypedFile profileImage;
+
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -128,10 +199,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             try {
                 List<Address> addressList = mGeocoder.getFromLocation(cameraLocation.latitude, cameraLocation.longitude, 1);
                 if (addressList.size() > 0) {
-                    if (isLoaded == -1) {
-                        isLoaded = 1;
-                        initInactive();
-                    }
+
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -165,11 +233,94 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
         ButterKnife.inject(this);
         setSupportActionBar(toolbar);
+        mContext=this;
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        mMessageReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                // Extract data included in the Intent
+                if(intent.hasExtra("state")){
+                    String state = intent.getStringExtra("state");
+                    Log.d("server connection", "RECEIVER: Got state: " + state);
+                    if(state.equals("inactive")){
+                        initInactive();
+                    } else if(state.equals("active")){
+                        initActive();
+                    } else if(state.equals("navigating")){
+                        initNavigating();
+                    } else if(state.equals("arrived")){
+                        initArrived();
+                    } else if(state.equals("washing")){
+                        initWashing();
+                    } else if(state.equals("finalizing")){
+                        initFinalizing();
+                    } else {
+                        //??
+                    }
+                } else if(intent.hasExtra("userInfo")){
+                    String userInfo = intent.getStringExtra("userInfo");
+                    Log.d("server connection", "RECEIVER: Got userInfo: " + userInfo);
+                    String[] info= userInfo.split(", ");
+                    int userID = Integer.parseInt(info[0]);
+                    double lat = Double.parseDouble(info[1]);;
+                    double lng = Double.parseDouble(info[2]);
+                    int carID = Integer.parseInt(info[3]);
+                    final int washType = Integer.parseInt(info[4]);
+                    mSharedPreferences.edit().putInt("userID", userID).apply();
+                    mSharedPreferences.edit().putInt("carID", carID).apply();
+                    mSharedPreferences.edit().putInt("washType",washType).apply();
+
+                    initRequesting();
+                    mWMWVendorEngine.getUserWithID(userID, new Callback<JSONObject>() {
+                        @Override
+                        public void success(JSONObject obj, Response response) {
+                            String responseString = new String(((TypedByteArray) response.getBody()).getBytes());
+                            Map<String, String> userInfo = new HashMap<String, String>();
+                            userInfo = parseResponse(responseString);
+                            String name = userInfo.get("FirstName") + " " + userInfo.get("LastName");
+
+                            // Log.d("getUser", "success: "+responseString);
+                            Log.d("getUser", "success: " + name);
+                            mSharedPreferences.edit().putString("userFullName", name).apply();
+                            String displayText = name + " has requested a wash!";
+                            userFullName.setText(displayText);
+
+                            getWashPrice(washType);
+                        }
+
+                        @Override
+                        public void failure(RetrofitError error) {
+                            Log.d("getUser", "failz: " + error.toString());
+                        }
+                    });
+
+
+                    userLocation = new LatLng(lat,lng);
+                }  else if(intent.hasExtra("requestCancel")){
+                    Log.d("server connection", "RECEIVER: Got cancel request");
+                    initActive();
+                    if(mConnectionManager.isConnected()){
+                        mConnectionManager.startListening(currentLocation);
+                        Log.d("server connection", "RECEIVER: Got cancel request success");
+                    } else {
+                        Log.d("server connection", "RECEIVER: Got cancel request");
+                    }
+                } else if(intent.hasExtra("requestCancel")){
+                    Log.d("server connection", "RECEIVER: Got cancel request failz");
+                    initActive();
+                    if(mConnectionManager.isConnected()){
+                        mConnectionManager.startListening(currentLocation);
+                    }
+                }
+            }
+        };
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver,
+                new IntentFilter("com.android.activity.SEND_DATA"));
+
         navigationOptions = new String[]{"WMW Vendor", "Profile", "About", "Sign out"};
         initDrawer();
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -181,7 +332,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         currentView = loadingLayout;
         int view = R.layout.loading_layout;
         swapView(view);
+        mWMWVendorEngine = new WMWVendorEngine();
+        /*
+        mWMWVendorEngine.createVendor("Rconn", "pass", "ross@connacher.com", "2039215412", new Callback<String>() {
+            @Override
+            public void success(String s, Response response) {
+                Log.d("createVendor", "success: "+ s);
+            }
 
+            @Override
+            public void failure(RetrofitError error) {
+                Log.d("createVendor", "failz: "+ error.toString());
+            }
+        });
+        */
+        //setup javaScript connection
+        mConnectionManager = null;
+        final Thread networkThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mConnectionManager = new ConnectionManager(getApplicationContext());
+                //Log.d("server connection", "isConnectedAfterAdd: " + mConnectionManager.isConnected());
+            }
+        });
+        networkThread.run();
+
+    }
+
+    private Map<String, String> parseResponse(String s) {
+        HashMap userData = new HashMap();
+        s = s.substring(1, s.length()-1);
+        s = s.replace(" ", "").replace("\t", "").replace(",","").replace("\"", "");
+        String[] dataItem = s.split("\n");
+        for(int i = 1; i < dataItem.length;i++){
+            if(dataItem[i].endsWith(":")){
+                dataItem[i] = dataItem[i]+" ";
+            }
+            String[] info  = dataItem[i].split(":");
+            String key = info[0];
+            String value = info[1];
+            userData.put(key, value);
+        }
+        return userData;
     }
 
 
@@ -276,10 +468,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void attemptLogout() {
-        mSharedPreferences.edit().clear().commit();
-        Intent i = new Intent(this, LoginActivity.class);
-        startActivity(i);
-        finish();
+
+
+        if(vendorState==VendorState.ACTIVE||vendorState==VendorState.INACTIVE){
+            mSharedPreferences.edit().clear().commit();
+            Intent i = new Intent(this, LoginActivity.class);
+            startActivity(i);
+            finish();
+        } else {
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Error logging out");
+            builder.setMessage("You cannot log out while you are active. Finish your wash before you log out!");
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+            builder.show();
+        }
     }
 
     private void addCurrentStateView() {
@@ -303,25 +510,62 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initActive() {
+        if(mRoute!=null){
+            mRoute.remove();
+        }
+        if(end!=null){
+            end.remove();
+        }
+        if(start!=null){
+            start.remove();
+        }
+        if(currentLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+        }
+        if(updateETAtimer!=null){
+            updateETAtimer.cancel();
+        }
+        //currentLocation = mMap.getCameraPosition().target;
         int view = R.layout.active_layout;
         swapView(view);
+        vendorState= VendorState.ACTIVE;
         stopAccepting = (Button) findViewById(R.id.stopAccepting);
         stopAccepting.setOnClickListener(this);
     }
 
     private void initInactive() {
+        if(mRoute!=null){
+            mRoute.remove();
+        }
+        if(end!=null){
+            end.remove();
+        }
+        if(start!=null){
+            start.remove();
+        }
+        if (currentLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+        }
+        if(updateETAtimer!=null){
+            updateETAtimer.cancel();
+        }
+        vendorState= VendorState.INACTIVE;
         int view = R.layout.inactive_layout;
         swapView(view);
         startAccepting = (Button) findViewById(R.id.startAccepting);
         startAccepting.setOnClickListener(this);
+
 
     }
 
     private void initRequesting() {
         int view = R.layout.requesting_layout;
         swapView(view);
+        vendorState= VendorState.REQUESTING;
         acceptRequest = (Button) findViewById(R.id.acceptRequest);
         acceptRequest.setOnClickListener(this);
+
+        userFullName = (TextView)findViewById(R.id.requestingUserName);
 
         final TextView timer = (TextView) findViewById(R.id.progressText);
         hasAccepted = false;
@@ -346,22 +590,86 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initNavigating() {
         int view = R.layout.navigation_layout;
         swapView(view);
+        vendorState= VendorState.NAVIGATING;
         beginNavigation = (Button) findViewById(R.id.beginNavigation);
         beginNavigation.setOnClickListener(this);
         contactNavigation = (Button) findViewById(R.id.contactNavigation);
         contactNavigation.setOnClickListener(this);
-        LatLng destination = null;
-        //createRoute(destination);
+        LatLng destination = userLocation;
+        if(distance(userLocation.latitude,userLocation.longitude,currentLocation.latitude,currentLocation.longitude)<.25){
+            mConnectionManager.vendorHasArrived();
+            initArrived();
+            return;
+
+        }
+       // createRoute(destination);
+        if(currentLocation!=null){
+            LatLngBounds.Builder b = new LatLngBounds.Builder();
+            start = mMap.addMarker(new MarkerOptions()
+                    .position(currentLocation)
+                    .draggable(false).visible(false));
+            end = mMap.addMarker(new MarkerOptions()
+                    .position(destination)
+                    .draggable(false).visible(true));
+            Marker[] markers ={start,end};
+            for (Marker m : markers) {
+                b.include(m.getPosition());
+            }
+            LatLngBounds bounds = b.build();
+//Change the padding as per needed
+            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, 244,244,0);
+            mMap.animateCamera(cu);
+
+            updateETAtimer = new CountDownTimer(1000*60*60,10000) {
+                @Override
+                public void onTick(long millisUntilFinished) {
+
+                    if(mConnectionManager.isConnected()){
+                        if(distance(userLocation.latitude,userLocation.longitude,currentLocation.latitude,currentLocation.longitude)<.25){
+                            mConnectionManager.vendorHasArrived();
+                            initArrived();
+                            updateETAtimer.cancel();
+
+                        } else {
+                            mConnectionManager.updateETA(currentLocation);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFinish() {
+
+                }
+            };
+            updateETAtimer.start();
+        }
     }
 
     private void initArrived() {
+        if(mRoute!=null){
+            mRoute.remove();
+        }
+        if(updateETAtimer!=null){
+            updateETAtimer.cancel();
+        }
         int view = R.layout.arrived_layout;
         swapView(view);
+        vendorState= VendorState.ARRIVED;
         takeBeforePictureArrived = (Button) findViewById(R.id.arrivedBeforePicture);
         takeBeforePictureArrived.setOnClickListener(this);
 
         beginWashArrived = (Button) findViewById(R.id.arrivedBeginWash);
-        beginWashArrived.setOnClickListener(this);
+        beginWashArrived.setOnClickListener(null);
+        int carID = mSharedPreferences.getInt("carID",-1);
+        userCarImage = (CircleImageView) findViewById(R.id.arrivedUserPicture);
+        if(carID>0){
+            Picasso.with(mContext)
+                    .load("http://www.WashMyWhip.us/wmwapp/CarImages/car"+carID+"image.jpg")
+                    .resize(60, 60)
+                    .centerCrop()
+                    .into(userCarImage);
+        }
+
 
 
     }
@@ -369,6 +677,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initWashing() {
         int view = R.layout.washing_layout;
         swapView(view);
+        vendorState= VendorState.WASHING;
         takeAfterPictureWashing = (Button) findViewById(R.id.washingAfterPicture);
         takeAfterPictureWashing.setOnClickListener(this);
 
@@ -379,6 +688,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initFinalizing() {
         int view = R.layout.finalizing_layout;
         swapView(view);
+        vendorState= VendorState.FINALIZING;
         finalizingSubmit = (Button) findViewById(R.id.finalizingSubmitButton);
         finalizingSubmit.setOnClickListener(this);
 
@@ -441,6 +751,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+    public void launchGPS(){
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:<" + currentLocation.latitude  + ">,<" + currentLocation.longitude + ">?q=<" + userLocation.latitude  + ">,<" + userLocation.longitude + ">(" + "User Location" + ")"));
+        startActivity(intent);
+    }
+
     public void swapView(int v) {
         Log.d("TEST", "swapView");
         ViewGroup parent = (ViewGroup) currentView.getParent();
@@ -453,44 +768,119 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void createRoute(LatLng destination){
-        Polyline line = mMap.addPolyline(new PolylineOptions()
+        mRoute = mMap.addPolyline(new PolylineOptions()
                 .add(currentLocation, destination)
-                .width(5)
+                .width(10)
                 .color(R.color.blue));
 
     }
 
+    public void getWashPrice(int washType){
+        mWMWVendorEngine.findCostOfTransactionType(washType, new Callback<String>() {
+            @Override
+            public void success(String s, Response response) {
+                Log.d("getWashPrice", "success: "+ s);
+                int price = Integer.parseInt(s);
+                mSharedPreferences.edit().putInt("washPrice", price).apply();
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                Log.d("getWashPrice", "error");
+            }
+        });
+    }
+
+
+
+
     public void takeBeforePicture(){
 
     }
-    public void takeAfterPicture(){
+    public void uploadBefore(){
 
     }
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
         if(data!=null) {
-            Log.d("BLAHBLAH", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
+            Log.d("photoResult", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
             super.onActivityResult(requestCode, resultCode, data);
 
             if (requestCode == 0||requestCode==1) {
                 Uri photoUri = data.getData();
-                Log.d("BLAHBLAH", "uri: " + photoUri.toString());
-                //Bitmap photo = (Bitmap) data.getExtras().get("data");
-                Bitmap selectedImage = null;
-                try {
-                    selectedImage = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                Log.d("photoResult", "uri: " + photoUri.toString());
+
                 //DO SERVER STUFF?
                 //SCALE IMAGE DOWN
                 // profilePicture.setImageBitmap(selectedImage);
+            } else if(requestCode == BEFORE_REQUEST){
+                Log.d("photoResult", "BEFORE_REQUEST:");
+                Uri photoUri = data.getData();
+                String selectedImagePath = null;
+                Log.d("photoResult", "uri: " + photoUri.toString());
+
+
+                Cursor cursor = this.getContentResolver().query(
+                        photoUri, null, null, null, null);
+                if (cursor == null) {
+                    selectedImagePath = photoUri.getPath();
+                    Log.d("photoResult", "(null)path: " + selectedImagePath);
+                } else {
+                    cursor.moveToFirst();
+                    int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+                    selectedImagePath = cursor.getString(idx);
+                    Log.d("photoResult", "path: " + selectedImagePath);
+                }
+
+                //Bitmap photo = (Bitmap) data.getExtras().get("data");
+                Bitmap selectedImage = null;
+                String filename = "HasImage";
+
+                File sd = this.getCacheDir();
+
+                Log.d("photoResult", "getExternalStorageDirectory: name=" + sd.getName()+ " path= "+ sd.getPath());
+                File dest = new File(selectedImagePath);
+                dest.setWritable(true);
+                dest.setReadable(true);
+                //File newDest = new File(sd,"HasImage");
+
+
+              //  File newDest = new File(dest.getParent()+File.separator+filename);
+                try {
+                    dest.createNewFile();
+                    selectedImage = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
+
+                    FileOutputStream fos = new FileOutputStream(dest);
+                    final BufferedOutputStream bos = new BufferedOutputStream(fos);
+                    selectedImage.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+                    bos.flush();
+                    bos.close();
+                    fos.close();
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                beforeImage = new TypedFile("image/jpeg",dest);
+                beforeFile = dest;
+                beginWashArrived.setOnClickListener(this);
+                beginWashArrived.setBackgroundResource(R.drawable.rounded_corner_blue);
+
+
+            } else if(requestCode == AFTER_REQUEST){
+                Log.d("photoResult", "AFTER_REQUEST: ");
+
+
+            } else if(requestCode == PROFILE_REQUEST){
+                Log.d("photoResult", "PROFILE_REQUEST: ");
+
             }
         }
     }
 
-    private void selectImage() {
+    private void selectImage(final int requestCode) {
         final CharSequence[] items = { "Take Photo", "Choose from Library", "Cancel" };
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Add Photo!");
@@ -500,7 +890,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (items[item].equals("Take Photo")) {
                     Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                     //0 is request code
-                    startActivityForResult(intent, 0);
+                    startActivityForResult(intent, requestCode);
                 } else if (items[item].equals("Choose from Library")) {
                     Intent intent = new Intent(
                             Intent.ACTION_PICK,
@@ -508,7 +898,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     intent.setType("image/*");
 
                     startActivityForResult(
-                            Intent.createChooser(intent, "Select File"), 1);
+                            Intent.createChooser(intent, "Select File"), requestCode);
                 } else if (items[item].equals("Cancel")) {
                     dialog.dismiss();
                 }
@@ -563,42 +953,162 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+
     @Override
     public void onClick(View v) {
         if(startAccepting!=null &&v.getId() == startAccepting.getId()){
-            startAccepting.setOnClickListener(null);
-            initActive();
+            if(currentLocation!=null){
+                startAccepting.setOnClickListener(null);
+                initActive();
+                if(mConnectionManager.isConnected()){
+                    mConnectionManager.startListening(currentLocation);
+                }
+            }
 
         } else if (stopAccepting!=null &&v.getId() == stopAccepting.getId()) {
             stopAccepting.setOnClickListener(null);
-           // initInactive();
-            initRequesting();
+            initInactive();
+            if(mConnectionManager.isListening()){
+                mConnectionManager.stopListening();
+            }
+           // initRequesting();
         } else if (acceptRequest!=null &&v.getId() == acceptRequest.getId()) {
-            stopAccepting.setOnClickListener(null);
+            acceptRequest.setOnClickListener(null);
             if(mCountDownTimer!=null){
                 mCountDownTimer.cancel();
             }
             hasAccepted = true;
+            if(mConnectionManager.isConnected()){
+                mConnectionManager.acceptRequest(currentLocation);
+                mConnectionManager.updateETA(currentLocation);
+            }
             initNavigating();
         } else if (beginNavigation!=null &&v.getId() == beginNavigation.getId()) {
             beginNavigation.setOnClickListener(null);
             // LAUNCH GOOGLE MAPS with current location and user location (sent from server)
 
-
-
-
-            initArrived();
+            launchGPS();
 
         } else if (contactNavigation!=null &&v.getId() == contactNavigation.getId()) {
             contactNavigation.setOnClickListener(null);
-            //CALL/TEXT USER
+            //CALL/TEXT USER6
+
            initContact();
         } else if (beginWashArrived!=null &&v.getId() == beginWashArrived.getId()) {
             beginWashArrived.setOnClickListener(null);
+            if(mConnectionManager.isConnected()){
+                //transactionID
+                int userID = mSharedPreferences.getInt("userID",-1);
+                int carID = mSharedPreferences.getInt("carID", -1);
+                int washType = mSharedPreferences.getInt("washType",-1);
+                int vendorID = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
+                int cost = mSharedPreferences.getInt("cost",20);
+                final boolean[] hasError = new boolean[1];
+                Log.d("createTransaction","BEFORE: "+ userID+" "+carID+" "+ washType+" "+ vendorID);
+                if(userID>=0 &&carID>=0 &&vendorID>=0 &&washType>=0){
+
+                    /*
+                    PictureUploader uploader = new PictureUploader(0);
+                    RequestParams params = new RequestParams();
+                    try {
+                        Log.d("createTransaction", "BEFORE: " + HasImage.isFile() + "name:  " + HasImage.getName()+ "path:  "+ HasImage.getPath());
+                        params.put("HasImage",HasImage);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    params.put("userID",userID);
+                    params.put("carID",carID);
+                    params.put("type",washType);
+                    params.put("cost",cost);
+                    params.put("vendorID",vendorID);
+
+                    uploader.post("http://www.WashMyWhip.us/wmwapp/createTransaction.php", params, new AsyncHttpResponseHandler() {
+                        @Override
+                        public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                            String responseString = null;
+                            try {
+                                responseString = new String(responseBody,"UTF8");
+                            } catch (UnsupportedEncodingException e) {
+                                e.printStackTrace();
+                            }
+                            Log.d("createTransaction", "success(new):" + responseString);
+                        }
+
+                        @Override
+                        public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+                            Log.d("createTransaction", "fail(new): " + error.toString());
+                        }
+                    });
+
+                    String user =  "" + userID;
+                    String car =  "" + carID;
+                    String vendor =  "" + vendorID;
+                    String type =  "" + washType;
+                    String price =  "" + cost;
+                    Ion.with(this)
+                            .load("http://www.WashMyWhip.us/wmwapp/createTransaction.php")
+                            .setMultipartParameter("userID", user)
+                            .setMultipartParameter("carID", car)
+                            .setMultipartParameter("vendorID", vendor)
+                            .setMultipartParameter("type", type)
+                            .setMultipartParameter("cost", price)
+                            .setMultipartFile("HasImage", "image/jpeg", beforeFile)
+                            .asString()
+                            .setCallback(new FutureCallback<String>() {
+                                @Override
+                                public void onCompleted(Exception e, String result) {
+                                    Log.d("createTransaction", "???");
+                                    if(result!=null){
+                                        Log.d("createTransaction", "" + result);
+                                    }
+                                    if(e!=null){
+                                        Log.d("createTransaction", ""+ e.getMessage());
+                                    }
+                                }
+
+                            });
+
+
+
+                    */
+                    /*
+                    String user =  "" + userID;
+                    String car =  "" + carID;
+                    String vendor =  "" + vendorID;
+                    String type =  "" + washType;
+                    String price =  "" + cost;
+                    createTransactionRequest request = new createTransactionRequest(user,car,vendor,type,price,beforeImage);
+                    mWMWVendorEngine.createTransaction(request, new Callback<String>() {
+                        @Override
+                        public void success(String str, Response response) {
+                            Log.d("createTransaction","success: "+ str);
+                            //save transactionID to sharedPrefs
+                            transactionID = str;
+                            mSharedPreferences.edit().putString("transactionID",transactionID).apply();
+                            if(mConnectionManager.isConnected()){
+                               // mConnectionManager.vendorHasInitiatedWash(transactionID);
+                            }
+
+                        }
+
+                        @Override
+                        public void failure(RetrofitError error) {
+                            Log.d("createTransaction","error: "+ error.toString());
+
+                            //vendor should stay in arrived state
+                            hasError[0] = true;
+                        }
+                    });
+                    */
+                }
+
+                //mConnectionManager.vendorHasInitiatedWash();
+            }
             initWashing();
 
         } else if (takeBeforePictureArrived!=null &&v.getId() == takeBeforePictureArrived.getId()) {
-            takeBeforePictureArrived.setOnClickListener(null);
+
+            selectImage(BEFORE_REQUEST);
 
         } else if (completeWashWashing!=null &&v.getId() == completeWashWashing.getId()) {
             completeWashWashing.setOnClickListener(null);
