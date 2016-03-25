@@ -2,6 +2,7 @@ package com.washmywhip.wmwvendor;
 
 import com.squareup.okhttp.OkHttpClient;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import retrofit.Callback;
@@ -64,5 +65,8 @@ public class WMWVendorEngine {
 
     public void getUserWithID(int userID, Callback<JSONObject> callback) {
         mService.getUserWithID(userID, callback);
+    }
+    public void getCarWithID(int carID, Callback<Object> callback) {
+        mService.getCarWithID(carID, callback);
     }
 }

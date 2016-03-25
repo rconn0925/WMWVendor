@@ -18,6 +18,8 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.CountDownTimer;
 import android.os.Environment;
@@ -33,6 +35,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Base64;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -64,6 +67,7 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.squareup.picasso.Picasso;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -144,7 +148,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private EditText finalizingComments;
     private TextView userFullName;
     private Context mContext;
-    private CircleImageView userCarImage;
+    private CircleImageView userCarImageArrived;
+    private CircleImageView userCarImageWashing;
+    private CircleImageView userImageFinalizing;
+    private RelativeLayout washcontact;
+    private RelativeLayout arrivedcontact;
 
     private BroadcastReceiver mMessageReceiver;
     private LatLng userLocation;
@@ -157,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private File beforeFile;
     private TypedFile afterImage;
     private TypedFile profileImage;
-
+    private String carData;
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -170,6 +178,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @InjectView(R.id.cancelToolbarButton)
     TextView editButton;
 
+    private final LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location location) {
+            //your code here
+            Log.d("LocationListener", "got this location: " + location.toString());
+            currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+
+
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
 
     private GoogleMap.OnMyLocationChangeListener myLocationChangeListener = new GoogleMap.OnMyLocationChangeListener() {
         @Override
@@ -211,29 +245,33 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         @Override
         public void onMapClick(LatLng latLng) {
             Log.d("MAIN", "clearing focus on finalizingComments");
-            if(finalizingComments!=null&&finalizingComments.hasFocus()){
+            if (finalizingComments != null && finalizingComments.hasFocus()) {
                 Log.d("MAIN", "finalizingComments has focus");
                 hideKeyboard(finalizingComments);
             }
         }
     };
+    private LocationManager mLocationManager;
+
 
     public void hideKeyboard(View view) {
-        InputMethodManager inputMethodManager =(InputMethodManager)getSystemService(Activity.INPUT_METHOD_SERVICE);
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
         inputMethodManager.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
+
     public void showKeyboard(View view) {
-        InputMethodManager inputMethodManager =(InputMethodManager)getSystemService(Activity.INPUT_METHOD_SERVICE);
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
         inputMethodManager.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mContext = this;
         setContentView(R.layout.activity_main);
         ButterKnife.inject(this);
         setSupportActionBar(toolbar);
-        mContext=this;
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -243,38 +281,78 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onReceive(Context context, Intent intent) {
                 // Extract data included in the Intent
-                if(intent.hasExtra("state")){
+                if (intent.hasExtra("state")) {
                     String state = intent.getStringExtra("state");
                     Log.d("server connection", "RECEIVER: Got state: " + state);
-                    if(state.equals("inactive")){
+                    if (state.equals("inactive")) {
                         initInactive();
-                    } else if(state.equals("active")){
+                    } else if (state.equals("active")) {
                         initActive();
-                    } else if(state.equals("navigating")){
+                    } else if (state.equals("navigating")) {
                         initNavigating();
-                    } else if(state.equals("arrived")){
+                    } else if (state.equals("arrived")) {
                         initArrived();
-                    } else if(state.equals("washing")){
+                    } else if (state.equals("washing")) {
                         initWashing();
-                    } else if(state.equals("finalizing")){
+                    } else if (state.equals("finalizing")) {
                         initFinalizing();
                     } else {
                         //??
                     }
-                } else if(intent.hasExtra("userInfo")){
+                } else if (intent.hasExtra("userInfo")) {
                     String userInfo = intent.getStringExtra("userInfo");
                     Log.d("server connection", "RECEIVER: Got userInfo: " + userInfo);
-                    String[] info= userInfo.split(", ");
+                    String[] info = userInfo.split(", ");
                     int userID = Integer.parseInt(info[0]);
-                    double lat = Double.parseDouble(info[1]);;
+                    double lat = Double.parseDouble(info[1]);
+                    ;
                     double lng = Double.parseDouble(info[2]);
                     int carID = Integer.parseInt(info[3]);
                     final int washType = Integer.parseInt(info[4]);
                     mSharedPreferences.edit().putInt("userID", userID).apply();
                     mSharedPreferences.edit().putInt("carID", carID).apply();
-                    mSharedPreferences.edit().putInt("washType",washType).apply();
+                    mSharedPreferences.edit().putInt("washType", washType).apply();
+
 
                     initRequesting();
+                    mWMWVendorEngine.getCarWithID(carID, new Callback<Object>() {
+                        @Override
+                        public void success(Object jsonObject, Response response) {
+                            Log.d("getCar", "success");
+                            String responseStr = new String(((TypedByteArray) response.getBody()).getBytes());
+                            Log.d("getCar", "success " + responseStr);
+                            responseStr = responseStr.replace("[", "").replace("]", "");
+
+                            carData = responseStr;
+                            Map<String, String> data = new HashMap<String, String>();
+                            data = parseResponseComma(responseStr);
+
+                            //mSharedPreferences.edit().putString("carRawData",carData).apply();
+                            String color = data.get("Color");
+                            String make = data.get("Model");
+                            String model = data.get("Make");
+                            String plate = data.get("Plate");
+                            Log.d("getCar", "success " + color + " " + make);
+
+                            mSharedPreferences.edit().putString("CarColor", color).apply();
+                            mSharedPreferences.edit().putString("CarMake", make).apply();
+                            mSharedPreferences.edit().putString("CarModel", model).apply();
+                            mSharedPreferences.edit().putString("CarPlate", plate).apply();
+
+
+                        }
+
+                        @Override
+                        public void failure(RetrofitError error) {
+                            //   String responseString = new String(((TypedByteArray)error.getBody()).getBytes());
+                            Log.d("getCar", "failz: " + error.toString());
+                            //   Log.d("getCar", "failz: " +responseString);
+                            Log.d("getCar", "failz: " + error.getCause());
+
+                        }
+                    });
+
+
                     mWMWVendorEngine.getUserWithID(userID, new Callback<JSONObject>() {
                         @Override
                         public void success(JSONObject obj, Response response) {
@@ -282,10 +360,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             Map<String, String> userInfo = new HashMap<String, String>();
                             userInfo = parseResponse(responseString);
                             String name = userInfo.get("FirstName") + " " + userInfo.get("LastName");
-
+                            String phoneNum = userInfo.get("Phone");
                             // Log.d("getUser", "success: "+responseString);
                             Log.d("getUser", "success: " + name);
                             mSharedPreferences.edit().putString("userFullName", name).apply();
+                            mSharedPreferences.edit().putString("userPhoneNumber", phoneNum).apply();
+
                             String displayText = name + " has requested a wash!";
                             userFullName.setText(displayText);
 
@@ -299,20 +379,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     });
 
 
-                    userLocation = new LatLng(lat,lng);
-                }  else if(intent.hasExtra("requestCancel")){
+                    userLocation = new LatLng(lat, lng);
+                } else if (intent.hasExtra("requestCancel")) {
                     Log.d("server connection", "RECEIVER: Got cancel request");
                     initActive();
-                    if(mConnectionManager.isConnected()){
+                    if (mConnectionManager.isConnected()) {
                         mConnectionManager.startListening(currentLocation);
                         Log.d("server connection", "RECEIVER: Got cancel request success");
                     } else {
                         Log.d("server connection", "RECEIVER: Got cancel request");
                     }
-                } else if(intent.hasExtra("requestCancel")){
+                } else if (intent.hasExtra("requestCancel")) {
                     Log.d("server connection", "RECEIVER: Got cancel request failz");
                     initActive();
-                    if(mConnectionManager.isConnected()){
+                    if (mConnectionManager.isConnected()) {
                         mConnectionManager.startListening(currentLocation);
                     }
                 }
@@ -361,14 +441,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private Map<String, String> parseResponse(String s) {
         HashMap userData = new HashMap();
-        s = s.substring(1, s.length()-1);
-        s = s.replace(" ", "").replace("\t", "").replace(",","").replace("\"", "");
+        s = s.substring(1, s.length() - 1);
+        s = s.replace(" ", "").replace("\t", "").replace(",", "").replace("\"", "");
         String[] dataItem = s.split("\n");
-        for(int i = 1; i < dataItem.length;i++){
-            if(dataItem[i].endsWith(":")){
-                dataItem[i] = dataItem[i]+" ";
+        for (int i = 1; i < dataItem.length; i++) {
+            if (dataItem[i].endsWith(":")) {
+                dataItem[i] = dataItem[i] + " ";
             }
-            String[] info  = dataItem[i].split(":");
+            String[] info = dataItem[i].split(":");
+            String key = info[0];
+            String value = info[1];
+            userData.put(key, value);
+        }
+        return userData;
+    }
+
+    private Map<String, String> parseResponseComma(String s) {
+        HashMap userData = new HashMap();
+        s = s.substring(1, s.length() - 1);
+        s = s.replace(" ", "").replace("\t", "").replace("\"", "");
+        String[] dataItem = s.split(",");
+        for (int i = 1; i < dataItem.length; i++) {
+            if (dataItem[i].endsWith(":")) {
+                dataItem[i] = dataItem[i] + " ";
+            }
+            String[] info = dataItem[i].split(":");
             String key = info[0];
             String value = info[1];
             userData.put(key, value);
@@ -388,6 +485,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
+
+
+        //  mLocationManager.req
         mMap = googleMap;
         allowLocationServices(true);
         mMap.getUiSettings().setAllGesturesEnabled(false);
@@ -395,6 +495,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.setOnMyLocationChangeListener(myLocationChangeListener);
         mMap.setOnCameraChangeListener(myCameraChangeListener);
         mMap.setOnMapClickListener(myMapClickListener);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0,
+                0, mLocationListener);
+        Location lastKnownLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if(lastKnownLocation!=null){
+            Log.d("LocationTAG", "got last know location");
+            currentLocation = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+        }
 
 
     }
@@ -470,7 +589,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void attemptLogout() {
 
 
-        if(vendorState==VendorState.ACTIVE||vendorState==VendorState.INACTIVE){
+        if (vendorState == VendorState.ACTIVE || vendorState == VendorState.INACTIVE) {
             mSharedPreferences.edit().clear().commit();
             Intent i = new Intent(this, LoginActivity.class);
             startActivity(i);
@@ -510,46 +629,46 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initActive() {
-        if(mRoute!=null){
+        if (mRoute != null) {
             mRoute.remove();
         }
-        if(end!=null){
+        if (end != null) {
             end.remove();
         }
-        if(start!=null){
-            start.remove();
-        }
-        if(currentLocation != null) {
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
-        }
-        if(updateETAtimer!=null){
-            updateETAtimer.cancel();
-        }
-        //currentLocation = mMap.getCameraPosition().target;
-        int view = R.layout.active_layout;
-        swapView(view);
-        vendorState= VendorState.ACTIVE;
-        stopAccepting = (Button) findViewById(R.id.stopAccepting);
-        stopAccepting.setOnClickListener(this);
-    }
-
-    private void initInactive() {
-        if(mRoute!=null){
-            mRoute.remove();
-        }
-        if(end!=null){
-            end.remove();
-        }
-        if(start!=null){
+        if (start != null) {
             start.remove();
         }
         if (currentLocation != null) {
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
         }
-        if(updateETAtimer!=null){
+        if (updateETAtimer != null) {
             updateETAtimer.cancel();
         }
-        vendorState= VendorState.INACTIVE;
+        //currentLocation = mMap.getCameraPosition().target;
+        int view = R.layout.active_layout;
+        swapView(view);
+        vendorState = VendorState.ACTIVE;
+        stopAccepting = (Button) findViewById(R.id.stopAccepting);
+        stopAccepting.setOnClickListener(this);
+    }
+
+    private void initInactive() {
+        if (mRoute != null) {
+            mRoute.remove();
+        }
+        if (end != null) {
+            end.remove();
+        }
+        if (start != null) {
+            start.remove();
+        }
+        if (currentLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+        }
+        if (updateETAtimer != null) {
+            updateETAtimer.cancel();
+        }
+        vendorState = VendorState.INACTIVE;
         int view = R.layout.inactive_layout;
         swapView(view);
         startAccepting = (Button) findViewById(R.id.startAccepting);
@@ -561,11 +680,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initRequesting() {
         int view = R.layout.requesting_layout;
         swapView(view);
-        vendorState= VendorState.REQUESTING;
+        vendorState = VendorState.REQUESTING;
         acceptRequest = (Button) findViewById(R.id.acceptRequest);
         acceptRequest.setOnClickListener(this);
 
-        userFullName = (TextView)findViewById(R.id.requestingUserName);
+        userFullName = (TextView) findViewById(R.id.requestingUserName);
 
         final TextView timer = (TextView) findViewById(R.id.progressText);
         hasAccepted = false;
@@ -590,20 +709,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initNavigating() {
         int view = R.layout.navigation_layout;
         swapView(view);
-        vendorState= VendorState.NAVIGATING;
+        vendorState = VendorState.NAVIGATING;
         beginNavigation = (Button) findViewById(R.id.beginNavigation);
         beginNavigation.setOnClickListener(this);
         contactNavigation = (Button) findViewById(R.id.contactNavigation);
         contactNavigation.setOnClickListener(this);
         LatLng destination = userLocation;
-        if(distance(userLocation.latitude,userLocation.longitude,currentLocation.latitude,currentLocation.longitude)<.25){
+        if (distance(userLocation.latitude, userLocation.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
             mConnectionManager.vendorHasArrived();
             initArrived();
             return;
 
         }
-       // createRoute(destination);
-        if(currentLocation!=null){
+        // createRoute(destination);
+        if (currentLocation != null) {
             LatLngBounds.Builder b = new LatLngBounds.Builder();
             start = mMap.addMarker(new MarkerOptions()
                     .position(currentLocation)
@@ -611,21 +730,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             end = mMap.addMarker(new MarkerOptions()
                     .position(destination)
                     .draggable(false).visible(true));
-            Marker[] markers ={start,end};
+            Marker[] markers = {start, end};
             for (Marker m : markers) {
                 b.include(m.getPosition());
             }
             LatLngBounds bounds = b.build();
 //Change the padding as per needed
-            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, 244,244,0);
+            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, 244, 244, 0);
             mMap.animateCamera(cu);
 
-            updateETAtimer = new CountDownTimer(1000*60*60,10000) {
+            updateETAtimer = new CountDownTimer(1000 * 60 * 60, 10000) {
                 @Override
                 public void onTick(long millisUntilFinished) {
 
-                    if(mConnectionManager.isConnected()){
-                        if(distance(userLocation.latitude,userLocation.longitude,currentLocation.latitude,currentLocation.longitude)<.25){
+                    if (mConnectionManager.isConnected()) {
+                        if (distance(userLocation.latitude, userLocation.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
                             mConnectionManager.vendorHasArrived();
                             initArrived();
                             updateETAtimer.cancel();
@@ -646,30 +765,61 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initArrived() {
-        if(mRoute!=null){
+        if (mRoute != null) {
             mRoute.remove();
         }
-        if(updateETAtimer!=null){
+        if (updateETAtimer != null) {
             updateETAtimer.cancel();
         }
         int view = R.layout.arrived_layout;
         swapView(view);
-        vendorState= VendorState.ARRIVED;
+        vendorState = VendorState.ARRIVED;
         takeBeforePictureArrived = (Button) findViewById(R.id.arrivedBeforePicture);
         takeBeforePictureArrived.setOnClickListener(this);
+        arrivedcontact = (RelativeLayout) findViewById(R.id.arrivedContact);
+        arrivedcontact.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    initContact();
+                    arrivedcontact.setOnClickListener(null);
+                    Log.d("contact", "test");
+                    return true;
+                }
+                return false;
+            }
+        });
 
         beginWashArrived = (Button) findViewById(R.id.arrivedBeginWash);
         beginWashArrived.setOnClickListener(null);
-        int carID = mSharedPreferences.getInt("carID",-1);
-        userCarImage = (CircleImageView) findViewById(R.id.arrivedUserPicture);
-        if(carID>0){
-            Picasso.with(mContext)
-                    .load("http://www.WashMyWhip.us/wmwapp/CarImages/car"+carID+"image.jpg")
+
+        TextView carColorArrived = (TextView) findViewById(R.id.arrivedCarColor);
+        TextView carMakeAndModlArrived = (TextView) findViewById(R.id.arrivedCarMakeAndModel);
+        TextView carPlateArrived = (TextView) findViewById(R.id.arrivedCarPlate);
+        TextView userNameArrived = (TextView) findViewById(R.id.arrivedUserName);
+
+        String color = mSharedPreferences.getString("CarColor", "null");
+        String make = mSharedPreferences.getString("CarMake", "null");
+        String model = mSharedPreferences.getString("CarModel", "null");
+        String plate = mSharedPreferences.getString("CarPlate", "null");
+        String name = mSharedPreferences.getString("userFullName", "null");
+        String makeAndModel = make + " " + model;
+
+        carColorArrived.setText(color);
+        carMakeAndModlArrived.setText(makeAndModel);
+        carPlateArrived.setText(plate);
+        userNameArrived.setText(name);
+
+
+        int carID = mSharedPreferences.getInt("carID", -1);
+        userCarImageArrived = (CircleImageView) findViewById(R.id.arrivedUserPicture);
+        if (carID > 0) {
+            Picasso.with(this)
+                    .load("http://www.WashMyWhip.us/wmwapp/CarImages/car" + carID + "image.jpg")
                     .resize(60, 60)
                     .centerCrop()
-                    .into(userCarImage);
+                    .into(userCarImageArrived);
         }
-
 
 
     }
@@ -677,23 +827,74 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initWashing() {
         int view = R.layout.washing_layout;
         swapView(view);
-        vendorState= VendorState.WASHING;
+        vendorState = VendorState.WASHING;
         takeAfterPictureWashing = (Button) findViewById(R.id.washingAfterPicture);
         takeAfterPictureWashing.setOnClickListener(this);
 
         completeWashWashing = (Button) findViewById(R.id.washingCompleteWash);
         completeWashWashing.setOnClickListener(this);
+
+        washcontact = (RelativeLayout) findViewById(R.id.washingContact);
+        washcontact.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    initContact();
+                    washcontact.setOnClickListener(null);
+                    Log.d("contact", "test");
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        TextView carColorWashing = (TextView) findViewById(R.id.washingCarColor);
+        TextView carMakeAndModlWashing = (TextView) findViewById(R.id.washingCarMakeAndModel);
+        TextView carPlateWashing = (TextView) findViewById(R.id.washingCarPlate);
+        TextView userNameWashing = (TextView) findViewById(R.id.washingUserName);
+
+        String color = mSharedPreferences.getString("CarColor", "null");
+        String make = mSharedPreferences.getString("CarMake", "null");
+        String model = mSharedPreferences.getString("CarModel", "null");
+        String plate = mSharedPreferences.getString("CarPlate", "null");
+        String name = mSharedPreferences.getString("userFullName", "null");
+        String makeAndModel = make + " " + model;
+
+        carColorWashing.setText(color);
+        carMakeAndModlWashing.setText(makeAndModel);
+        carPlateWashing.setText(plate);
+        userNameWashing.setText(name);
+
+        int carID = mSharedPreferences.getInt("carID", -1);
+        userCarImageWashing = (CircleImageView) findViewById(R.id.washingUserPicture);
+        if (carID > 0) {
+            Picasso.with(this)
+                    .load("http://www.WashMyWhip.us/wmwapp/CarImages/car" + carID + "image.jpg")
+                    .resize(60, 60)
+                    .centerCrop()
+                    .into(userCarImageWashing);
+        }
     }
 
     private void initFinalizing() {
         int view = R.layout.finalizing_layout;
         swapView(view);
-        vendorState= VendorState.FINALIZING;
+        vendorState = VendorState.FINALIZING;
         finalizingSubmit = (Button) findViewById(R.id.finalizingSubmitButton);
         finalizingSubmit.setOnClickListener(this);
 
         ratingBar = (RatingBar) findViewById(R.id.finalizingRating);
         finalizingComments = (EditText) findViewById(R.id.finalizingComments);
+
+        int userID = mSharedPreferences.getInt("userID", -1);
+        userImageFinalizing = (CircleImageView) findViewById(R.id.finalizingUserImage);
+        if (userID > 0) {
+            Picasso.with(this)
+                    .load("http://www.WashMyWhip.us/wmwapp/ClientAvatarImages/client" + userID + "avatar.jpg")
+                    .resize(60, 60)
+                    .centerCrop()
+                    .into(userImageFinalizing);
+        }
 
     }
 
@@ -711,8 +912,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
         //background cant be clicked
-        beginNavigation.setOnClickListener(null);
-        contactNavigation.setOnClickListener(null);
+        if (takeAfterPictureWashing != null && completeWashWashing != null && washcontact != null) {
+            takeAfterPictureWashing.setOnClickListener(null);
+            completeWashWashing.setOnClickListener(null);
+        }
+        if (takeBeforePictureArrived != null && beginWashArrived != null && arrivedcontact != null) {
+            takeBeforePictureArrived.setOnClickListener(null);
+            beginWashArrived.setOnClickListener(null);
+        }
 
 
     }
@@ -724,30 +931,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         parent.removeView(contactView);
 
         //background can be clicked
-        beginNavigation.setOnClickListener(this);
-        contactNavigation.setOnClickListener(this);
+        if (takeAfterPictureWashing != null && completeWashWashing != null && washcontact != null) {
+            takeAfterPictureWashing.setOnClickListener(this);
+            completeWashWashing.setOnClickListener(this);
+        }
+        if (takeBeforePictureArrived != null && beginWashArrived != null && arrivedcontact != null) {
+            takeBeforePictureArrived.setOnClickListener(this);
+            beginWashArrived.setOnClickListener(this);
+        }
+        if (beginNavigation != null && contactNavigation != null) {
+            beginNavigation.setOnClickListener(this);
+            contactNavigation.setOnClickListener(this);
+        }
     }
 
     public void contactCallUser() {
-        String userNumber = "2039215412";
-        Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + userNumber));
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
+
+        String userNumber = mSharedPreferences.getString("userPhoneNumber", "2039215412");
+        Log.d("contactCallUser", "call user");
+        Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + userNumber));
         startActivity(intent);
 
 
     }
     public void contactTextUser(){
-        String number = "2039215412";  // The number on which you want to send SMS
-        startActivity(new Intent(Intent.ACTION_VIEW, Uri.fromParts("sms", number, null)));
+        String userNumber = mSharedPreferences.getString("userPhoneNumber","2039215412");  // The number on which you want to send SMS
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.fromParts("sms", userNumber, null)));
 
     }
 
@@ -871,6 +1080,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             } else if(requestCode == AFTER_REQUEST){
                 Log.d("photoResult", "AFTER_REQUEST: ");
+                completeWashWashing.setOnClickListener(this);
+                completeWashWashing.setBackgroundResource(R.drawable.rounded_corner_blue);
 
 
             } else if(requestCode == PROFILE_REQUEST){
@@ -937,6 +1148,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return;
             }
             mMap.setMyLocationEnabled(true);
+           // Location myLocation = mMap.get
         } else {
             //disable
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -983,6 +1195,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 mConnectionManager.updateETA(currentLocation);
             }
             initNavigating();
+
         } else if (beginNavigation!=null &&v.getId() == beginNavigation.getId()) {
             beginNavigation.setOnClickListener(null);
             // LAUNCH GOOGLE MAPS with current location and user location (sent from server)
@@ -1115,7 +1328,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             initFinalizing();
 
         } else if (takeAfterPictureWashing!=null &&v.getId() == takeAfterPictureWashing.getId()) {
-            takeAfterPictureWashing.setOnClickListener(null);
+            selectImage(AFTER_REQUEST);
 
         } else if (finalizingSubmit!=null &&v.getId() == finalizingSubmit.getId()) {
             finalizingSubmit.setOnClickListener(null);
@@ -1141,9 +1354,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         } else if (doneContact!=null &&v.getId() == doneContact.getId()) {
             doneContact.setOnClickListener(null);
-            Log.d("MAIN ACTIVITY","done pressed");
             removeContact();
-
         }
     }
 }

@@ -79,4 +79,8 @@ public interface WMWVendorService {
     @FormUrlEncoded
     @POST("/getUserWithID.php")
     void getUserWithID(@Field("userID")int userID, Callback<JSONObject> callback);
+
+    @FormUrlEncoded
+    @POST("/getCarWithID.php")
+    void getCarWithID(@Field("carID")int userID, Callback<Object> callback);
 }

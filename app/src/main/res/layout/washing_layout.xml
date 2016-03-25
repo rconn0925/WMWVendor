@@ -19,7 +19,8 @@
         android:paddingStart="12dp"
         android:paddingRight="12dp"
         android:paddingEnd="12dp"
-        android:background="@drawable/rounded_corner">
+        android:background="@drawable/rounded_corner"
+        android:id="@+id/washingContact">
 
 
         <LinearLayout
@@ -27,13 +28,15 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_alignParentTop="true"
-            android:gravity="center_horizontal"
-            android:id="@+id/mtopLayout">
+            android:id="@+id/topLayout"
+            android:gravity="center_horizontal">
             <de.hdodenhof.circleimageview.CircleImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
                 android:id="@+id/washingUserPicture"
-                android:background="@drawable/picture"/>
+                android:background="@drawable/picture"
+                android:layout_marginRight="12dp"
+                android:layout_marginBottom="12dp"/>
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -42,46 +45,74 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/washingUserName"
-                    android:textColor="@color/blue"/>
+                    android:textStyle="bold"
+                    android:textColor="@color/blue"
+                    android:text="Test User"
+                    android:textSize="18sp"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/light_grey"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/washingCarColor"/>
+                    android:id="@+id/washingCarColor"
+                    android:textSize="10sp"
+                    android:text="Test Color"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/washingCarMakeAndModel"/>
+                    android:id="@+id/washingCarMakeAndModel"
+                    android:text="Make and Model"
+                    android:textStyle="bold"
+                    android:textSize="16sp"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/washingCarPlate"/>
+                    android:id="@+id/washingCarPlate"
+                    android:textSize="10sp"
+                    android:text="PLATE"/>
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/mtopLayout"
-            android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:layout_below="@+id/topLayout"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="YOU HAVE ARRIVED"
-                android:textColor="@color/blue"/>
-
+                android:text="WASHING"
+                android:textStyle="bold"
+                android:textColor="@color/blue"
+                android:textSize="18sp"/>
+            <View
+                android:layout_width="170dp"
+                android:layout_height="1dp"
+                android:background="@color/light_grey"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/washingWashCost"
                 android:text="$20.00"
-                android:textColor="@color/blue"/>
+                android:textColor="@color/blue"
+                android:textStyle="bold"
+                android:textSize="32sp"/>
+            <View
+                android:layout_width="170dp"
+                android:layout_height="1dp"
+                android:background="@color/light_grey"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="EXTERIOR WASH"/>
+                android:text="EXTERIOR WASH"
+                android:textColor="@color/grey"
+                android:textSize="10sp"/>
 
 
         </LinearLayout>

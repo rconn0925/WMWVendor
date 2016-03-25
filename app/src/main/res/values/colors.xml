@@ -11,4 +11,6 @@
     <color name="translucent_black">#80000000</color>
     <color name="grey">#8A8B8C</color>
     <color name="red">#FF2800</color>
+    <color name="light_grey">#D1EEEE</color>
+
 </resources>
