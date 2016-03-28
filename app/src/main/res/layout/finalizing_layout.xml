@@ -51,7 +51,7 @@
                 android:textColor="@color/blue"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:text="USER NAME"/>
+                android:id="@+id/finalizingUserName"/>
 
             <RatingBar
                 android:layout_width="wrap_content"
@@ -67,7 +67,8 @@
                 android:hint="Additional Comments (Optional)"
                 android:textSize="12sp"
                 android:maxLength="120"
-                android:background="@drawable/rounded_corner"/>
+                android:background="@drawable/rounded_corner"
+                android:gravity="top"/>
 
         </LinearLayout>
     </RelativeLayout>

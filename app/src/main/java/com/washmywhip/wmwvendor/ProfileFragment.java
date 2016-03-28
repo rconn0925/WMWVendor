@@ -28,6 +28,8 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.squareup.picasso.Picasso;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,6 +43,7 @@ import java.util.Objects;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
+import de.hdodenhof.circleimageview.CircleImageView;
 import retrofit.Callback;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
@@ -67,14 +70,14 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
 
     private OnFragmentInteractionListener mListener;
 
-    SharedPreferences mSharedPreferences;
-
-    String username, email, phone;
-
+    private SharedPreferences mSharedPreferences;
+    private String username, email, phone;
+    private  int vendorID;
 
 
     @InjectView(R.id.pictureProfile)
-    ImageView profilePicture;
+    CircleImageView profilePicture;
+
     @InjectView(R.id.usernameProfile)
     EditText usernameProfile;
     @InjectView(R.id.emailProfile)
@@ -83,6 +86,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     EditText phoneEditText;
 
     TextView editButton;
+
 
 
     KeyListener defaultKeyListener;
@@ -158,9 +162,9 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                int userid = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
-                Log.d("updateVendor", "id: " + userid);
-                mEngine.updateVendorInfo(userid, email, username, phone, new Callback<Object>() {
+                int vendorID = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
+                Log.d("updateVendor", "id: " + vendorID);
+                mEngine.updateVendorInfo(vendorID, email, username, phone, new Callback<Object>() {
                     @Override
                     public void success(Object o, Response response) {
                         Log.d("updateUser", "success " + o.toString());
@@ -202,12 +206,14 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         editButton = (TextView) getActivity().findViewById(R.id.cancelToolbarButton);
         editButton.setOnClickListener(this);
 
+        profilePicture = (CircleImageView)v.findViewById(R.id.pictureProfile);
          profilePicture.setOnClickListener(null);
 
         //should be getting info from server, not shared prefs
         username = mSharedPreferences.getString("Username", "");
         email = mSharedPreferences.getString("Email","");
         phone = mSharedPreferences.getString("Phone","");
+        vendorID = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
 
         usernameProfile.setText(username);
         emailEditText.setText(email);
@@ -227,7 +233,11 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         emailEditText.setEnabled(false);
         phoneEditText.setKeyListener(null);
         phoneEditText.setEnabled(false);
-
+        Picasso.with(getActivity())
+                .load("http://www.WashMyWhip.us/wmwapp/VendorAvatarImages/vendor" + vendorID + "avatar.jpg")
+                .resize(100, 100)
+                .centerCrop()
+                .into(profilePicture);
 
         return v;
     }

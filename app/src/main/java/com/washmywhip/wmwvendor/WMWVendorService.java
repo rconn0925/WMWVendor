@@ -74,7 +74,7 @@ public interface WMWVendorService {
 
     @Multipart
     @POST("/createTransaction.php")
-    void createTransaction(@Part("userID") int userID,@Part("vendorID") int vendorID, @Part("carID") int carID,@Part("type") int washType,@Part("cost") int cost,@Part("HasImage") TypedFile file, Callback<String> callback);
+    void createTransaction(@Part("userID") int userID,@Part("vendorID") int vendorID, @Part("carID") int carID,@Part("type") int washType,@Part("cost") int cost,@Part("userfile\"; filename=\"HasImage") TypedFile file, Callback<String> callback);
 
     @FormUrlEncoded
     @POST("/getUserWithID.php")

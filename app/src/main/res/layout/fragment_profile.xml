@@ -29,14 +29,14 @@ android:id="@+id/profileFragment">
             android:orientation="horizontal"
             android:paddingTop="8dp">
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
                 android:src="@drawable/picture"
                 android:id="@+id/pictureProfile"
                 android:clickable="true"
                 android:onClick="onClick"
-                android:scaleType="fitXY" />
+                android:layout_marginRight="12dp"/>
 
 
 

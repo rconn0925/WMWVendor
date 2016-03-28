@@ -305,7 +305,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     String[] info = userInfo.split(", ");
                     int userID = Integer.parseInt(info[0]);
                     double lat = Double.parseDouble(info[1]);
-                    ;
                     double lng = Double.parseDouble(info[2]);
                     int carID = Integer.parseInt(info[3]);
                     final int washType = Integer.parseInt(info[4]);
@@ -367,8 +366,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             mSharedPreferences.edit().putString("userPhoneNumber", phoneNum).apply();
 
                             String displayText = name + " has requested a wash!";
-                            userFullName.setText(displayText);
-
+                            if(userFullName!=null){
+                                userFullName.setText(displayText);
+                            }
                             getWashPrice(washType);
                         }
 
@@ -389,12 +389,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     } else {
                         Log.d("server connection", "RECEIVER: Got cancel request");
                     }
-                } else if (intent.hasExtra("requestCancel")) {
-                    Log.d("server connection", "RECEIVER: Got cancel request failz");
-                    initActive();
-                    if (mConnectionManager.isConnected()) {
-                        mConnectionManager.startListening(currentLocation);
-                    }
+
+                    //SERVER POPUP??
+
                 }
             }
         };
@@ -816,7 +813,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (carID > 0) {
             Picasso.with(this)
                     .load("http://www.WashMyWhip.us/wmwapp/CarImages/car" + carID + "image.jpg")
-                    .resize(60, 60)
+                    .resize(100, 100)
                     .centerCrop()
                     .into(userCarImageArrived);
         }
@@ -870,7 +867,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (carID > 0) {
             Picasso.with(this)
                     .load("http://www.WashMyWhip.us/wmwapp/CarImages/car" + carID + "image.jpg")
-                    .resize(60, 60)
+                    .resize(100, 100)
                     .centerCrop()
                     .into(userCarImageWashing);
         }
@@ -885,13 +882,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         ratingBar = (RatingBar) findViewById(R.id.finalizingRating);
         finalizingComments = (EditText) findViewById(R.id.finalizingComments);
+        TextView userNameWashing = (TextView) findViewById(R.id.finalizingUserName);
+        String name = mSharedPreferences.getString("userFullName", "Username");
+        userNameWashing.setText(name);
 
         int userID = mSharedPreferences.getInt("userID", -1);
         userImageFinalizing = (CircleImageView) findViewById(R.id.finalizingUserImage);
         if (userID > 0) {
             Picasso.with(this)
                     .load("http://www.WashMyWhip.us/wmwapp/ClientAvatarImages/client" + userID + "avatar.jpg")
-                    .resize(60, 60)
+                    .resize(100, 100)
                     .centerCrop()
                     .into(userImageFinalizing);
         }
@@ -1284,14 +1284,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
                     */
-                    /*
+
                     String user =  "" + userID;
                     String car =  "" + carID;
                     String vendor =  "" + vendorID;
                     String type =  "" + washType;
                     String price =  "" + cost;
-                    createTransactionRequest request = new createTransactionRequest(user,car,vendor,type,price,beforeImage);
-                    mWMWVendorEngine.createTransaction(request, new Callback<String>() {
+                   // createTransactionRequest request = new createTransactionRequest(user,car,vendor,type,price,beforeImage);
+                    /*
+                    mWMWVendorEngine.createTransaction(userID,vendorID,carID,washType,cost,beforeImage, new Callback<String>() {
                         @Override
                         public void success(String str, Response response) {
                             Log.d("createTransaction","success: "+ str);
@@ -1312,7 +1313,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             hasError[0] = true;
                         }
                     });
-                    */
+*/
                 }
 
                 //mConnectionManager.vendorHasInitiatedWash();
@@ -1334,7 +1335,28 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             finalizingSubmit.setOnClickListener(null);
             int rating = ratingBar.getProgress();
             String comments = finalizingComments.getText().toString();
-            Log.d("finalizingSubmit","comments: "+ comments+ ", numstars: "+ rating);
+            Log.d("finalizingSubmit", "comments: " + comments + ", numstars: " + rating);
+            int transaction = 100;
+            boolean isValid = false;
+            if(isValid){
+                mWMWVendorEngine.rateUser(transaction, rating, comments, new Callback<String>() {
+                    @Override
+                    public void success(String s, Response response) {
+                        //Success popup? ty for using this service or somethin like that
+                        initInactive();
+                    }
+
+                    @Override
+                    public void failure(RetrofitError error) {
+                        finalizingSubmit.setOnClickListener(MainActivity.this);
+                        //ERROR POPup... user should retry
+                    }
+                });
+
+            }
+
+
+
             hideKeyboard(finalizingComments);
             initInactive();
 
