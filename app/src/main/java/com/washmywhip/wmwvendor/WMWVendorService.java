@@ -58,23 +58,19 @@ public interface WMWVendorService {
     @POST("/findCostOfTransactionType.php")
     void findCostOfTransactionType(@Field("typeVal") int washType,Callback<String> callback);
 
-    //last parameter image?
-    @FormUrlEncoded
-    @POST("/createTransaction.php")
-    void createTransaction(@Body createTransactionRequest request, Callback<String> callback);
 
     //last parameter image?
     @FormUrlEncoded
-    @POST("/completeTransaction.php")
-    void completeTransaction(@Field("transactionID") int transactionID,@Field("duration") int duration, Callback<String> callback);
+    @POST("/completeTransactionAndroid.php")
+    void completeTransaction(@Field("transactionID") int transactionID,@Field("duration") int duration, @Field("img") String encodeImage, Callback<String> callback);
 
     @FormUrlEncoded
     @POST("/rateUser.php")
     void rateUser(@Field("transactionID") int transactionID,@Field("rating") int rating,@Field("comments") String comments, Callback<String> callback);
 
-    @Multipart
-    @POST("/createTransaction.php")
-    void createTransaction(@Part("userID") int userID,@Part("vendorID") int vendorID, @Part("carID") int carID,@Part("type") int washType,@Part("cost") int cost,@Part("userfile\"; filename=\"HasImage") TypedFile file, Callback<String> callback);
+    @FormUrlEncoded
+    @POST("/createTransactionAndroid.php")
+    void createTransaction(@Field("userID") int userID,@Field("vendorID") int vendorID, @Field("carID") int carID,@Field("type") int washType,@Field("cost") int cost,@Field("img") String encodedImage, Callback<String> callback);
 
     @FormUrlEncoded
     @POST("/getUserWithID.php")
@@ -83,4 +79,8 @@ public interface WMWVendorService {
     @FormUrlEncoded
     @POST("/getCarWithID.php")
     void getCarWithID(@Field("carID")int userID, Callback<Object> callback);
+
+    @FormUrlEncoded
+    @POST("/uploadVendorAvatarImageAndroid.php")
+    void uploadVendorAvatarImageAndroid (@Field("vendorID") int vendorID, @Field("img") String encodedImage, Callback<Object> callback);
 }

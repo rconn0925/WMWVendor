@@ -8,6 +8,7 @@ import org.json.JSONObject;
 import retrofit.Callback;
 import retrofit.RestAdapter;
 import retrofit.client.OkClient;
+import retrofit.converter.GsonConverter;
 import retrofit.mime.TypedFile;
 
 /**
@@ -50,14 +51,11 @@ public class WMWVendorEngine {
     public void findCostOfTransactionType(int washType,Callback<String> callback) {
         mService.findCostOfTransactionType(washType, callback);
     }
-    public void createTransaction(createTransactionRequest request,Callback<String> callback) {
-        mService.createTransaction(request, callback);
+    public void createTransaction(int userID,int vendorID,int carID, int washType,int cost,String encodedImage,Callback<String> callback) {
+        mService.createTransaction(userID, vendorID, carID, washType, cost, encodedImage, callback);
     }
-    public void createTransaction(int userID,int vendorID,int carID, int washType,int cost,TypedFile image,Callback<String> callback) {
-        mService.createTransaction(userID, vendorID, carID, washType, cost,image, callback);
-    }
-    public void completeTransaction(int transactionID,int duration,Callback<String> callback) {
-        mService.completeTransaction(transactionID, duration, callback);
+    public void completeTransaction(int transactionID,int duration,String encodedImage,Callback<String> callback) {
+        mService.completeTransaction(transactionID, duration, encodedImage, callback);
     }
     public void rateUser(int transactionID,int rating,String comments,Callback<String> callback) {
         mService.rateUser(transactionID, rating, comments, callback);
@@ -68,5 +66,8 @@ public class WMWVendorEngine {
     }
     public void getCarWithID(int carID, Callback<Object> callback) {
         mService.getCarWithID(carID, callback);
+    }
+    public void uploadVendorAvatarImageAndroid(int vendorID, String encodedImage, Callback<Object> callback) {
+        mService.uploadVendorAvatarImageAndroid(vendorID, encodedImage, callback);
     }
 }

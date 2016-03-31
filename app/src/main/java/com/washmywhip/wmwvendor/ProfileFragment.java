@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.method.KeyListener;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -28,12 +30,15 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.squareup.picasso.MemoryPolicy;
+import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -63,6 +68,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
+    private static final int PROFILE_REQUEST = 3820;
 
     // TODO: Rename and change types of parameters
     private String mParam1;
@@ -73,6 +79,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     private SharedPreferences mSharedPreferences;
     private String username, email, phone;
     private  int vendorID;
+    private String encodedProfile;
 
 
     @InjectView(R.id.pictureProfile)
@@ -91,7 +98,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
 
     KeyListener defaultKeyListener;
 
-    private WMWVendorEngine mEngine;
+    private WMWVendorEngine mWMWVendorEngine;
 
 
     public ProfileFragment() {
@@ -155,7 +162,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         email = emailEditText.getText().toString();
         phone = phoneEditText.getText().toString();
 
-        Log.d("updateVendor", username  + " " + " " + email + " " + phone);
+        Log.d("updateVendor", username + " " + " " + email + " " + phone);
         final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Hold on!");
         builder.setMessage("You are requesting to update your profile information. Is all the information correct?");
@@ -164,7 +171,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
             public void onClick(DialogInterface dialog, int which) {
                 int vendorID = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
                 Log.d("updateVendor", "id: " + vendorID);
-                mEngine.updateVendorInfo(vendorID, email, username, phone, new Callback<Object>() {
+                mWMWVendorEngine.updateVendorInfo(vendorID, email, username, phone, new Callback<Object>() {
                     @Override
                     public void success(Object o, Response response) {
                         Log.d("updateUser", "success " + o.toString());
@@ -183,7 +190,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
                 dialog.cancel();
             }
         });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();
@@ -198,11 +205,12 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
+        Log.d("PROFILE", "onCreateView");
         View v = inflater.inflate(R.layout.fragment_profile, container, false);
         ButterKnife.inject(this, v);
 
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity().getApplicationContext());
-        mEngine = new WMWVendorEngine();
+        mWMWVendorEngine = new WMWVendorEngine();
         editButton = (TextView) getActivity().findViewById(R.id.cancelToolbarButton);
         editButton.setOnClickListener(this);
 
@@ -211,8 +219,8 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
 
         //should be getting info from server, not shared prefs
         username = mSharedPreferences.getString("Username", "");
-        email = mSharedPreferences.getString("Email","");
-        phone = mSharedPreferences.getString("Phone","");
+        email = mSharedPreferences.getString("Email", "");
+        phone = mSharedPreferences.getString("Phone", "");
         vendorID = Integer.parseInt(mSharedPreferences.getString("VendorID", "-1"));
 
         usernameProfile.setText(username);
@@ -235,6 +243,8 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         phoneEditText.setEnabled(false);
         Picasso.with(getActivity())
                 .load("http://www.WashMyWhip.us/wmwapp/VendorAvatarImages/vendor" + vendorID + "avatar.jpg")
+                .networkPolicy(NetworkPolicy.NO_CACHE)
+                .memoryPolicy(MemoryPolicy.NO_CACHE)
                 .resize(100, 100)
                 .centerCrop()
                 .into(profilePicture);
@@ -254,6 +264,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
+        Log.d("PROFILE", "Attaching");
         if (context instanceof OnFragmentInteractionListener) {
             mListener = (OnFragmentInteractionListener) context;
         } else {
@@ -282,7 +293,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
                 initEditable();
             }
         }   else if(v.getId()==profilePicture.getId()){
-            selectImage();
+            selectImage(PROFILE_REQUEST);
         }
     }
 
@@ -293,24 +304,64 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
             Log.d("BLAHBLAH", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
             super.onActivityResult(requestCode, resultCode, data);
 
+            Uri photoUri = data.getData();
+            String selectedImagePath = null;
+            Log.d("photoResult", "uri: " + photoUri.toString());
+
+
+            Cursor cursor = getActivity().getContentResolver().query(
+                    photoUri, null, null, null, null);
+            if (cursor == null) {
+                selectedImagePath = photoUri.getPath();
+                Log.d("photoResult", "(null)path: " + selectedImagePath);
+            } else {
+                cursor.moveToFirst();
+                int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+                selectedImagePath = cursor.getString(idx);
+                Log.d("photoResult", "path: " + selectedImagePath);
+            }
+
+            Bitmap selectedImage = null;
+            byte[] byteArray = null;
+            try {
+                selectedImage =Bitmap.createBitmap(MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), photoUri));
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                selectedImage.compress(Bitmap.CompressFormat.JPEG, 60, stream);
+
+                byteArray = stream.toByteArray();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             if (requestCode == 0||requestCode==1) {
-                Uri photoUri = data.getData();
-                Log.d("BLAHBLAH", "uri: " + photoUri.toString());
-                //Bitmap photo = (Bitmap) data.getExtras().get("data");
-                Bitmap selectedImage = null;
-                try {
-                    selectedImage = MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), photoUri);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                //carPic = photoUri.toString();
-                //SCALE IMAGE DOWN
-                // profilePicture.setImageBitmap(selectedImage);
+
+                Log.d("BLAHBLAH", "uri 0 or 1: " + photoUri.toString());
+
+            } else if (requestCode == PROFILE_REQUEST){
+                Log.d("photoResult", "PROFILE REQUEST: " + photoUri.toString());
+                encodedProfile = Base64.encodeToString(byteArray, Base64.DEFAULT);
+                profilePicture.setImageBitmap(selectedImage);
+                mWMWVendorEngine.uploadVendorAvatarImageAndroid(vendorID, encodedProfile, new Callback<Object>() {
+                    @Override
+                    public void success(Object s, Response response) {
+                        Log.d("vendorAvatarUpload", "Success " +s.toString());
+                    }
+
+                    @Override
+                    public void failure(RetrofitError error) {
+                      //  String json =  new String(((TypedByteArray)error.getResponse().getBody()).getBytes());
+
+                        Log.d("vendorAvatarUpload", "error: "+ error.getMessage());
+                    }
+                });
+
+
+
             }
         }
     }
 
-    private void selectImage() {
+    private void selectImage(final int requestCode) {
         final CharSequence[] items = { "Take Photo", "Choose from Library", "Cancel" };
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Add Photo!");
@@ -320,7 +371,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
                 if (items[item].equals("Take Photo")) {
                     Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                     //0 is request code
-                    startActivityForResult(intent, 0);
+                    startActivityForResult(intent, requestCode);
                 } else if (items[item].equals("Choose from Library")) {
                     Intent intent = new Intent(
                             Intent.ACTION_PICK,
@@ -328,7 +379,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
                     intent.setType("image/*");
 
                     startActivityForResult(
-                            Intent.createChooser(intent, "Select File"), 1);
+                            Intent.createChooser(intent, "Select File"), requestCode);
                 } else if (items[item].equals("Cancel")) {
                     dialog.dismiss();
                 }

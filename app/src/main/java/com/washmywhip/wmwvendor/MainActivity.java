@@ -281,6 +281,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onReceive(Context context, Intent intent) {
                 // Extract data included in the Intent
+
                 if (intent.hasExtra("state")) {
                     String state = intent.getStringExtra("state");
                     Log.d("server connection", "RECEIVER: Got state: " + state);
@@ -947,16 +948,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void contactCallUser() {
 
-        String userNumber = mSharedPreferences.getString("userPhoneNumber", "2039215412");
-        Log.d("contactCallUser", "call user");
-        Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + userNumber));
-        startActivity(intent);
-
+        String userNumber = mSharedPreferences.getString("userPhoneNumber", "null");
+        if(!userNumber.equals("null")) {
+            Log.d("contactCallUser", "call user");
+            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + userNumber));
+            startActivity(intent);
+        }
 
     }
     public void contactTextUser(){
-        String userNumber = mSharedPreferences.getString("userPhoneNumber","2039215412");  // The number on which you want to send SMS
-        startActivity(new Intent(Intent.ACTION_VIEW, Uri.fromParts("sms", userNumber, null)));
+        String userNumber = mSharedPreferences.getString("userPhoneNumber","null");  // The number on which you want to send SMS
+        if(!userNumber.equals("null")) {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.fromParts("sms", userNumber, null)));
+        }
 
     }
 
@@ -1016,76 +1020,63 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             Log.d("photoResult", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
             super.onActivityResult(requestCode, resultCode, data);
 
+            Uri photoUri = data.getData();
+            String selectedImagePath = null;
+            Log.d("photoResult", "uri: " + photoUri.toString());
+
+
+            Cursor cursor = this.getContentResolver().query(
+                    photoUri, null, null, null, null);
+            if (cursor == null) {
+                selectedImagePath = photoUri.getPath();
+                Log.d("photoResult", "(null)path: " + selectedImagePath);
+            } else {
+                cursor.moveToFirst();
+                int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+                selectedImagePath = cursor.getString(idx);
+                Log.d("photoResult", "path: " + selectedImagePath);
+            }
+
+            Bitmap selectedImage = null;
+            byte[] byteArray = null;
+            try {
+                selectedImage =Bitmap.createBitmap(MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri));
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                selectedImage.compress(Bitmap.CompressFormat.JPEG, 60, stream);
+
+                byteArray = stream.toByteArray();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             if (requestCode == 0||requestCode==1) {
-                Uri photoUri = data.getData();
-                Log.d("photoResult", "uri: " + photoUri.toString());
+               // Uri photoUri = data.getData();
+                Log.d("photoResult0 or 1", "uri: " + photoUri.toString());
 
                 //DO SERVER STUFF?
                 //SCALE IMAGE DOWN
                 // profilePicture.setImageBitmap(selectedImage);
             } else if(requestCode == BEFORE_REQUEST){
                 Log.d("photoResult", "BEFORE_REQUEST:");
-                Uri photoUri = data.getData();
-                String selectedImagePath = null;
-                Log.d("photoResult", "uri: " + photoUri.toString());
+                encodedBefore = Base64.encodeToString(byteArray,Base64.DEFAULT);
+                Log.d("encodedBefore","encodedImage: "+ encodedBefore);
 
 
-                Cursor cursor = this.getContentResolver().query(
-                        photoUri, null, null, null, null);
-                if (cursor == null) {
-                    selectedImagePath = photoUri.getPath();
-                    Log.d("photoResult", "(null)path: " + selectedImagePath);
-                } else {
-                    cursor.moveToFirst();
-                    int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
-                    selectedImagePath = cursor.getString(idx);
-                    Log.d("photoResult", "path: " + selectedImagePath);
-                }
-
-                //Bitmap photo = (Bitmap) data.getExtras().get("data");
-                Bitmap selectedImage = null;
-                String filename = "HasImage";
-
-                File sd = this.getCacheDir();
-
-                Log.d("photoResult", "getExternalStorageDirectory: name=" + sd.getName()+ " path= "+ sd.getPath());
-                File dest = new File(selectedImagePath);
-                dest.setWritable(true);
-                dest.setReadable(true);
-                //File newDest = new File(sd,"HasImage");
-
-
-              //  File newDest = new File(dest.getParent()+File.separator+filename);
-                try {
-                    dest.createNewFile();
-                    selectedImage = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
-
-                    FileOutputStream fos = new FileOutputStream(dest);
-                    final BufferedOutputStream bos = new BufferedOutputStream(fos);
-                    selectedImage.compress(Bitmap.CompressFormat.JPEG, 100, bos);
-                    bos.flush();
-                    bos.close();
-                    fos.close();
-
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                beforeImage = new TypedFile("image/jpeg",dest);
-                beforeFile = dest;
                 beginWashArrived.setOnClickListener(this);
                 beginWashArrived.setBackgroundResource(R.drawable.rounded_corner_blue);
 
 
             } else if(requestCode == AFTER_REQUEST){
                 Log.d("photoResult", "AFTER_REQUEST: ");
+                encodedAfter = Base64.encodeToString(byteArray,Base64.DEFAULT);
                 completeWashWashing.setOnClickListener(this);
                 completeWashWashing.setBackgroundResource(R.drawable.rounded_corner_blue);
 
 
             } else if(requestCode == PROFILE_REQUEST){
                 Log.d("photoResult", "PROFILE_REQUEST: ");
+                encodedProfile = Base64.encodeToString(byteArray,Base64.DEFAULT);
 
             }
         }
@@ -1220,105 +1211,51 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Log.d("createTransaction","BEFORE: "+ userID+" "+carID+" "+ washType+" "+ vendorID);
                 if(userID>=0 &&carID>=0 &&vendorID>=0 &&washType>=0){
 
-                    /*
-                    PictureUploader uploader = new PictureUploader(0);
-                    RequestParams params = new RequestParams();
-                    try {
-                        Log.d("createTransaction", "BEFORE: " + HasImage.isFile() + "name:  " + HasImage.getName()+ "path:  "+ HasImage.getPath());
-                        params.put("HasImage",HasImage);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    params.put("userID",userID);
-                    params.put("carID",carID);
-                    params.put("type",washType);
-                    params.put("cost",cost);
-                    params.put("vendorID",vendorID);
-
-                    uploader.post("http://www.WashMyWhip.us/wmwapp/createTransaction.php", params, new AsyncHttpResponseHandler() {
-                        @Override
-                        public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                            String responseString = null;
-                            try {
-                                responseString = new String(responseBody,"UTF8");
-                            } catch (UnsupportedEncodingException e) {
-                                e.printStackTrace();
-                            }
-                            Log.d("createTransaction", "success(new):" + responseString);
-                        }
-
-                        @Override
-                        public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                            Log.d("createTransaction", "fail(new): " + error.toString());
-                        }
-                    });
-
-                    String user =  "" + userID;
-                    String car =  "" + carID;
-                    String vendor =  "" + vendorID;
-                    String type =  "" + washType;
-                    String price =  "" + cost;
-                    Ion.with(this)
-                            .load("http://www.WashMyWhip.us/wmwapp/createTransaction.php")
-                            .setMultipartParameter("userID", user)
-                            .setMultipartParameter("carID", car)
-                            .setMultipartParameter("vendorID", vendor)
-                            .setMultipartParameter("type", type)
-                            .setMultipartParameter("cost", price)
-                            .setMultipartFile("HasImage", "image/jpeg", beforeFile)
-                            .asString()
-                            .setCallback(new FutureCallback<String>() {
-                                @Override
-                                public void onCompleted(Exception e, String result) {
-                                    Log.d("createTransaction", "???");
-                                    if(result!=null){
-                                        Log.d("createTransaction", "" + result);
-                                    }
-                                    if(e!=null){
-                                        Log.d("createTransaction", ""+ e.getMessage());
-                                    }
-                                }
-
-                            });
-
-
-
-                    */
-
-                    String user =  "" + userID;
-                    String car =  "" + carID;
-                    String vendor =  "" + vendorID;
-                    String type =  "" + washType;
-                    String price =  "" + cost;
-                   // createTransactionRequest request = new createTransactionRequest(user,car,vendor,type,price,beforeImage);
-                    /*
-                    mWMWVendorEngine.createTransaction(userID,vendorID,carID,washType,cost,beforeImage, new Callback<String>() {
+                    mWMWVendorEngine.createTransaction(userID,vendorID,carID,washType,cost,encodedBefore, new Callback<String>() {
                         @Override
                         public void success(String str, Response response) {
-                            Log.d("createTransaction","success: "+ str);
+                            String responseString = new String(((TypedByteArray) response.getBody()).getBytes());
+                            Log.d("createTransaction","success: "+responseString );
                             //save transactionID to sharedPrefs
                             transactionID = str;
-                            mSharedPreferences.edit().putString("transactionID",transactionID).apply();
+                            mSharedPreferences.edit().putString("transactionID", transactionID).apply();
+                            int time = (int) (System.currentTimeMillis());
+                            mSharedPreferences.edit().putInt("transactionStartTime",time).apply();
+                            Log.d("createTransaction", "transactionTime: " + time);
                             if(mConnectionManager.isConnected()){
-                               // mConnectionManager.vendorHasInitiatedWash(transactionID);
+                                mConnectionManager.vendorHasInitiatedWash(transactionID);
                             }
+                            initWashing();
 
                         }
 
                         @Override
                         public void failure(RetrofitError error) {
-                            Log.d("createTransaction","error: "+ error.toString());
+
+                            Log.d("createTransaction", "error: " + error.getMessage());
+                            final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                            builder.setTitle("Server Error");
+                            builder.setMessage("Please try again!");
+                            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    dialog.cancel();
+                                }
+                            });
+                            builder.show();
 
                             //vendor should stay in arrived state
                             hasError[0] = true;
+                            beginWashArrived.setBackgroundResource(R.drawable.rounded_corner_grey);
+                            beginWashArrived.setOnClickListener(null);
                         }
                     });
-*/
+
                 }
 
                 //mConnectionManager.vendorHasInitiatedWash();
             }
-            initWashing();
+
 
         } else if (takeBeforePictureArrived!=null &&v.getId() == takeBeforePictureArrived.getId()) {
 
@@ -1326,7 +1263,37 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         } else if (completeWashWashing!=null &&v.getId() == completeWashWashing.getId()) {
             completeWashWashing.setOnClickListener(null);
-            initFinalizing();
+            if(mConnectionManager.isConnected()){
+                int endTime = (int) (System.currentTimeMillis());
+                int startTime = mSharedPreferences.getInt("transactionStartTime",0);
+                Log.d("completeTransaction","startTime: "+ startTime+" endTime: "+ endTime );
+                int duration;
+                if(startTime==0){
+                    duration = 0;
+                } else {
+                    duration=(int)((endTime-startTime)/1000);
+                }
+                final int transactionID = Integer.parseInt(mSharedPreferences.getString("transactionID","-1"));
+                if(transactionID>=0){
+                    mWMWVendorEngine.completeTransaction(transactionID, duration, encodedAfter, new Callback<String>() {
+                        @Override
+                        public void success(String s, Response response) {
+                            Log.d("completeTransaction","succuss: "+ s );
+                            initFinalizing();
+                            mConnectionManager.vendorHasCompletedWash(""+transactionID);
+                        }
+
+                        @Override
+                        public void failure(RetrofitError error) {
+                            Log.d("completeTransaction","failz: "+ error.getMessage() );
+                        }
+                    });
+                }else {
+                    //get transactionID from server??
+                    Log.d("TransactionID","ERROR GETTING TRANSACTION");
+                }
+
+            }
 
         } else if (takeAfterPictureWashing!=null &&v.getId() == takeAfterPictureWashing.getId()) {
             selectImage(AFTER_REQUEST);
@@ -1336,29 +1303,35 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             int rating = ratingBar.getProgress();
             String comments = finalizingComments.getText().toString();
             Log.d("finalizingSubmit", "comments: " + comments + ", numstars: " + rating);
-            int transaction = 100;
-            boolean isValid = false;
-            if(isValid){
-                mWMWVendorEngine.rateUser(transaction, rating, comments, new Callback<String>() {
+            final int transactionID = Integer.parseInt(mSharedPreferences.getString("transactionID","-1"));
+            if(transactionID>0){
+                mWMWVendorEngine.rateUser(transactionID, rating, comments, new Callback<String>() {
                     @Override
                     public void success(String s, Response response) {
                         //Success popup? ty for using this service or somethin like that
-                        initInactive();
+                        Log.d("rateUser", "success: " + s);
+                        if (mConnectionManager.isConnected()) {
+                            mConnectionManager.vendorHasFinalized();
+                            Log.d("finalizingSubmit", "finalize server success");
+                            initInactive();
+                        }
                     }
 
                     @Override
                     public void failure(RetrofitError error) {
+                        Log.d("rateUser", "fail: " + error.getMessage());
                         finalizingSubmit.setOnClickListener(MainActivity.this);
                         //ERROR POPup... user should retry
                     }
                 });
 
+            } else {
+                Log.d("finalizingSubmit","error getting transactionID");
             }
 
 
 
             hideKeyboard(finalizingComments);
-            initInactive();
 
         } else if (callContact!=null &&v.getId() == callContact.getId()) {
             callContact.setOnClickListener(null);
@@ -1375,7 +1348,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             //text user
 
         } else if (doneContact!=null &&v.getId() == doneContact.getId()) {
-            doneContact.setOnClickListener(null);
+           // doneContact.setOnClickListener(null);
             removeContact();
         }
     }

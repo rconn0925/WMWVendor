@@ -198,7 +198,7 @@ public class ConnectionManager {
             mSocket.emit("vendorHasCompletedWash", transactionID);
         }
     }
-    public void vendorHadFinalized(){
+    public void vendorHasFinalized(){
         Log.d("server connection", "vendorHadFinalized server: "+ mSocket.connected());
         if(mSocket.connected()){
             mSocket.emit("vendorHadFinalized", "");
