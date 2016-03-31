@@ -15,6 +15,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -166,6 +167,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private TypedFile afterImage;
     private TypedFile profileImage;
     private String carData;
+    private boolean isSetup;
+    private Typeface mFont;
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -184,7 +187,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             //your code here
             Log.d("LocationListener", "got this location: " + location.toString());
             currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+            if(!isSetup){
+                isSetup=true;
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 16.0f));
+            }
 
 
         }
@@ -490,7 +496,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         allowLocationServices(true);
         mMap.getUiSettings().setAllGesturesEnabled(false);
         mMap.getUiSettings().setMyLocationButtonEnabled(false);
-        mMap.setOnMyLocationChangeListener(myLocationChangeListener);
+        //mMap.setOnMyLocationChangeListener(myLocationChangeListener);
         mMap.setOnCameraChangeListener(myCameraChangeListener);
         mMap.setOnMapClickListener(myMapClickListener);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -504,8 +510,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             return;
         }
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0,
-                0, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
         Location lastKnownLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         if(lastKnownLocation!=null){
             Log.d("LocationTAG", "got last know location");
