@@ -273,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        mFont= Typeface.createFromAsset(getAssets(), "fonts/Archive.otf");
         mContext = this;
         setContentView(R.layout.activity_main);
         ButterKnife.inject(this);
@@ -315,6 +315,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     double lng = Double.parseDouble(info[2]);
                     int carID = Integer.parseInt(info[3]);
                     final int washType = Integer.parseInt(info[4]);
+                    userLocation = new LatLng(lat, lng);
+                    // put in shared prefs
+                    mSharedPreferences.edit().putString("userLat",info[1]).apply();
+                    mSharedPreferences.edit().putString("userLong",info[2]).apply();
                     mSharedPreferences.edit().putInt("userID", userID).apply();
                     mSharedPreferences.edit().putInt("carID", carID).apply();
                     mSharedPreferences.edit().putInt("washType", washType).apply();
@@ -386,18 +390,33 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     });
 
 
-                    userLocation = new LatLng(lat, lng);
                 } else if (intent.hasExtra("requestCancel")) {
                     Log.d("server connection", "RECEIVER: Got cancel request");
-                    initActive();
-                    if (mConnectionManager.isConnected()) {
-                        mConnectionManager.startListening(currentLocation);
-                        Log.d("server connection", "RECEIVER: Got cancel request success");
-                    } else {
-                        Log.d("server connection", "RECEIVER: Got cancel request");
-                    }
 
-                    //SERVER POPUP??
+
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                    builder.setTitle("Client canceled the wash request!");
+                    builder.setMessage("Your client canceled the wash. Please wait while we connect you to another customer!");
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            initActive();
+                            if (mConnectionManager.isConnected()) {
+                                mConnectionManager.startListening(currentLocation);
+                                Log.d("server connection", "RECEIVER: Got cancel request success");
+                            } else {
+                                Log.d("server connection", "RECEIVER: Got cancel request");
+                            }
+
+                            //SERVER POPUP??
+                            dialog.cancel();
+                        }
+                    });
+                    builder.show();
+
+
+
+
 
                 }
             }
@@ -653,7 +672,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         swapView(view);
         vendorState = VendorState.ACTIVE;
         stopAccepting = (Button) findViewById(R.id.stopAccepting);
+        stopAccepting.setTypeface(mFont);
         stopAccepting.setOnClickListener(this);
+
+        TextView awaitingRequests = (TextView)findViewById(R.id.activeAwaiting);
+        awaitingRequests.setTypeface(mFont);
     }
 
     private void initInactive() {
@@ -676,6 +699,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         int view = R.layout.inactive_layout;
         swapView(view);
         startAccepting = (Button) findViewById(R.id.startAccepting);
+        startAccepting.setTypeface(mFont);
         startAccepting.setOnClickListener(this);
 
 
@@ -684,9 +708,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initRequesting() {
         int view = R.layout.requesting_layout;
         swapView(view);
+        mMap.clear();
         vendorState = VendorState.REQUESTING;
         acceptRequest = (Button) findViewById(R.id.acceptRequest);
         acceptRequest.setOnClickListener(this);
+        acceptRequest.setTypeface(mFont);
 
         userFullName = (TextView) findViewById(R.id.requestingUserName);
 
@@ -716,10 +742,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         vendorState = VendorState.NAVIGATING;
         beginNavigation = (Button) findViewById(R.id.beginNavigation);
         beginNavigation.setOnClickListener(this);
+        beginNavigation.setTypeface(mFont);
         contactNavigation = (Button) findViewById(R.id.contactNavigation);
         contactNavigation.setOnClickListener(this);
-        LatLng destination = userLocation;
-        if (distance(userLocation.latitude, userLocation.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
+        contactNavigation.setTypeface(mFont);
+        double userLat = Double.parseDouble(mSharedPreferences.getString("userLat","0"));
+        double userLong = Double.parseDouble(mSharedPreferences.getString("userLong","0"));
+        final LatLng destination = new LatLng(userLat,userLong);
+        if (distance(destination.latitude, destination.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
             mConnectionManager.vendorHasArrived();
             initArrived();
             return;
@@ -748,7 +778,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 public void onTick(long millisUntilFinished) {
 
                     if (mConnectionManager.isConnected()) {
-                        if (distance(userLocation.latitude, userLocation.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
+                        if (distance(destination.latitude, destination.longitude, currentLocation.latitude, currentLocation.longitude) < .25) {
                             mConnectionManager.vendorHasArrived();
                             initArrived();
                             updateETAtimer.cancel();
@@ -779,6 +809,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         swapView(view);
         vendorState = VendorState.ARRIVED;
         takeBeforePictureArrived = (Button) findViewById(R.id.arrivedBeforePicture);
+        takeBeforePictureArrived.setTypeface(mFont);
         takeBeforePictureArrived.setOnClickListener(this);
         arrivedcontact = (RelativeLayout) findViewById(R.id.arrivedContact);
         arrivedcontact.setOnTouchListener(new View.OnTouchListener() {
@@ -796,12 +827,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         beginWashArrived = (Button) findViewById(R.id.arrivedBeginWash);
         beginWashArrived.setOnClickListener(null);
+        beginWashArrived.setTypeface(mFont);
 
         TextView carColorArrived = (TextView) findViewById(R.id.arrivedCarColor);
         TextView carMakeAndModlArrived = (TextView) findViewById(R.id.arrivedCarMakeAndModel);
         TextView carPlateArrived = (TextView) findViewById(R.id.arrivedCarPlate);
         TextView userNameArrived = (TextView) findViewById(R.id.arrivedUserName);
+        TextView youHaveArrived = (TextView) findViewById(R.id.arrivedYouHaveArrived);
+        TextView washType = (TextView) findViewById(R.id.arrivedWashType);
+        TextView washCost = (TextView) findViewById(R.id.arrivedWashCost);
 
+        youHaveArrived.setTypeface(mFont);
+        washType.setTypeface(mFont);
+        washCost.setTypeface(mFont);
         String color = mSharedPreferences.getString("CarColor", "null");
         String make = mSharedPreferences.getString("CarMake", "null");
         String model = mSharedPreferences.getString("CarModel", "null");
@@ -810,9 +848,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         String makeAndModel = make + " " + model;
 
         carColorArrived.setText(color);
+        carColorArrived.setTypeface(mFont);
         carMakeAndModlArrived.setText(makeAndModel);
+        carMakeAndModlArrived.setTypeface(mFont);
         carPlateArrived.setText(plate);
+        carPlateArrived.setTypeface(mFont);
         userNameArrived.setText(name);
+        userNameArrived.setTypeface(mFont);
 
 
         int carID = mSharedPreferences.getInt("carID", -1);
@@ -834,9 +876,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         vendorState = VendorState.WASHING;
         takeAfterPictureWashing = (Button) findViewById(R.id.washingAfterPicture);
         takeAfterPictureWashing.setOnClickListener(this);
+        takeAfterPictureWashing.setTypeface(mFont);
 
         completeWashWashing = (Button) findViewById(R.id.washingCompleteWash);
         completeWashWashing.setOnClickListener(this);
+        completeWashWashing.setTypeface(mFont);
 
         washcontact = (RelativeLayout) findViewById(R.id.washingContact);
         washcontact.setOnTouchListener(new View.OnTouchListener() {
@@ -857,6 +901,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         TextView carPlateWashing = (TextView) findViewById(R.id.washingCarPlate);
         TextView userNameWashing = (TextView) findViewById(R.id.washingUserName);
 
+        TextView washingWashing = (TextView) findViewById(R.id.washingWashing);
+        TextView washType = (TextView) findViewById(R.id.washingWashType);
+        TextView washCost = (TextView) findViewById(R.id.washingWashCost);
+        washingWashing.setTypeface(mFont);
+        washType.setTypeface(mFont);
+        washCost.setTypeface(mFont);
+
         String color = mSharedPreferences.getString("CarColor", "null");
         String make = mSharedPreferences.getString("CarMake", "null");
         String model = mSharedPreferences.getString("CarModel", "null");
@@ -865,9 +916,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         String makeAndModel = make + " " + model;
 
         carColorWashing.setText(color);
+        carColorWashing.setTypeface(mFont);
         carMakeAndModlWashing.setText(makeAndModel);
+        carMakeAndModlWashing.setTypeface(mFont);
         carPlateWashing.setText(plate);
+        carPlateWashing.setTypeface(mFont);
         userNameWashing.setText(name);
+        userNameWashing.setTypeface(mFont);
 
         int carID = mSharedPreferences.getInt("carID", -1);
         userCarImageWashing = (CircleImageView) findViewById(R.id.washingUserPicture);
@@ -886,10 +941,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         vendorState = VendorState.FINALIZING;
         finalizingSubmit = (Button) findViewById(R.id.finalizingSubmitButton);
         finalizingSubmit.setOnClickListener(this);
+        finalizingSubmit.setTypeface(mFont);
 
         ratingBar = (RatingBar) findViewById(R.id.finalizingRating);
         finalizingComments = (EditText) findViewById(R.id.finalizingComments);
         TextView userNameWashing = (TextView) findViewById(R.id.finalizingUserName);
+        TextView howWouldYouRate = (TextView) findViewById(R.id.finalizingHowWouldYouRate);
+        howWouldYouRate.setTypeface(mFont);
+        userNameWashing.setTypeface(mFont);
         String name = mSharedPreferences.getString("userFullName", "Username");
         userNameWashing.setText(name);
 
@@ -912,10 +971,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         parent.addView(contactView);
         textContact = (TextView) findViewById(R.id.contactText);
         textContact.setOnClickListener(this);
+        textContact.setTypeface(mFont);
         callContact = (TextView) findViewById(R.id.contactCall);
         callContact.setOnClickListener(this);
+        callContact.setTypeface(mFont);
         doneContact = (TextView) findViewById(R.id.contactDone);
         doneContact.setOnClickListener(this);
+        doneContact.setTypeface(mFont);
 
 
         //background cant be clicked

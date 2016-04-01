@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -42,6 +43,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     private SharedPreferences mSharedPreferences;
     private Context mContext = this;
     private WMWVendorEngine mWMWVendorEngine;
+    private Typeface mFont;
 
     private View.OnFocusChangeListener focusChangeListener = new View.OnFocusChangeListener() {
         @Override
@@ -56,11 +58,13 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
+        mFont= Typeface.createFromAsset(getAssets(), "fonts/Archive.otf");
         mUsernameView = (EditText) findViewById(R.id.usernameField);
         forgotPassword = (TextView) findViewById(R.id.forgotPassword);
         forgotPassword.setOnClickListener(this);
+        forgotPassword.setTypeface(mFont);
         logIn = (Button) findViewById(R.id.loginloginButton);
+        logIn.setTypeface(mFont);
         loginLayout = (RelativeLayout) findViewById(R.id.loginLayout);
         logIn.setOnClickListener(this);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());

@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -95,7 +96,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     TextView editButton;
 
 
-
+    Typeface mFont;
     KeyListener defaultKeyListener;
 
     private WMWVendorEngine mWMWVendorEngine;
@@ -208,6 +209,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         Log.d("PROFILE", "onCreateView");
         View v = inflater.inflate(R.layout.fragment_profile, container, false);
         ButterKnife.inject(this, v);
+        mFont= Typeface.createFromAsset(getActivity().getAssets(), "fonts/Archive.otf");
 
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity().getApplicationContext());
         mWMWVendorEngine = new WMWVendorEngine();
@@ -227,19 +229,21 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         emailEditText.setText(email);
         phoneEditText.setText(phone);
 
-
-
-
+        TextView account = (TextView)getActivity().findViewById(R.id.profileAccount);
+        account.setTypeface(mFont);
         defaultKeyListener = usernameProfile.getKeyListener();
 
         editButton.setText("Edit");
         editButton.setVisibility(View.VISIBLE);
         usernameProfile.setActivated(false);
         usernameProfile.setKeyListener(null);
+        usernameProfile.setTypeface(mFont);
         usernameProfile.setEnabled(false);
         emailEditText.setKeyListener(null);
+        emailEditText.setTypeface(mFont);
         emailEditText.setEnabled(false);
         phoneEditText.setKeyListener(null);
+        phoneEditText.setTypeface(mFont);
         phoneEditText.setEnabled(false);
         Picasso.with(getActivity())
                 .load("http://www.WashMyWhip.us/wmwapp/VendorAvatarImages/vendor" + vendorID + "avatar.jpg")

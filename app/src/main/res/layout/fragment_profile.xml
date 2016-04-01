@@ -57,7 +57,8 @@ android:id="@+id/profileFragment">
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/account"
-            android:textColor="@color/blue" />
+            android:textColor="@color/blue"
+            android:id="@+id/profileAccount"/>
 
         <EditText
             android:layout_width="300dp"

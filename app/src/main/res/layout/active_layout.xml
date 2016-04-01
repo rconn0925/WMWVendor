@@ -16,7 +16,8 @@
         android:background="@drawable/rounded_corner_blue"
         android:textColor="@color/white"
         android:text="AWAITING REQUESTS..."
-        android:gravity="center"/>
+        android:gravity="center"
+        android:id="@+id/activeAwaiting"/>
 
 
     <Button

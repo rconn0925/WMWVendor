@@ -89,7 +89,8 @@
                 android:text="YOU HAVE ARRIVED"
                 android:textStyle="bold"
                 android:textColor="@color/blue"
-                android:textSize="18sp"/>
+                android:textSize="18sp"
+                android:id="@+id/arrivedYouHaveArrived"/>
             <View
                 android:layout_width="170dp"
                 android:layout_height="1dp"
@@ -112,7 +113,8 @@
                 android:layout_height="wrap_content"
                 android:text="EXTERIOR WASH"
                 android:textColor="@color/grey"
-                android:textSize="10sp"/>
+                android:textSize="10sp"
+                android:id="@+id/arrivedWashType"/>
 
 
         </LinearLayout>
