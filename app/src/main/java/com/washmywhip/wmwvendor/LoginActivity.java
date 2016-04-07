@@ -160,6 +160,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     SharedPreferences.Editor prefsEditor = mSharedPreferences.edit();
                     prefsEditor.putString("email", mUsernameView.getText().toString()).apply();
                     prefsEditor.putString("password", mPasswordView.getText().toString()).apply();
+                    prefsEditor.putBoolean("isLoggedIn", true).apply();
                     //Try to get response body
                     String responseString = new String(((TypedByteArray) response.getBody()).getBytes());
 
@@ -258,7 +259,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     builder.show();
 
                     mPasswordView.setText("");
-                    mUsernameView.setText("");
+                  //  mUsernameView.setText("");
 
                 }
             });

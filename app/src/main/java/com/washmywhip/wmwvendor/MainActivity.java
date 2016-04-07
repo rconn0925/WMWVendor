@@ -80,6 +80,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -559,7 +560,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         };
 
         mDrawerLayout.setDrawerListener(mDrawerToggle);
-        navDrawerList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, navigationOptions));
+
+        ArrayList<NavDrawerItem> data = new ArrayList<>();
+        data.add(new NavDrawerItem("Wash My Whip",R.drawable.newwmw));
+        data.add(new NavDrawerItem("Profile",R.drawable.profileicon));
+        data.add(new NavDrawerItem("Payment", R.drawable.paymenticon));
+        data.add(new NavDrawerItem("About",R.drawable.abouticon));
+        data.add(new NavDrawerItem("Sign Out", R.drawable.signout));
+
+        navDrawerList.setAdapter(new NavDrawerListAdapter(this, R.layout.nav_drawer_item, data));
         navDrawerList.setOnItemClickListener(this);
 
         //NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
@@ -613,10 +622,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
         if (vendorState == VendorState.ACTIVE || vendorState == VendorState.INACTIVE) {
-            mSharedPreferences.edit().clear().commit();
-            Intent i = new Intent(this, LoginActivity.class);
-            startActivity(i);
-            finish();
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Sign out");
+            builder.setMessage("Are you sure you want to sign out?");
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    mSharedPreferences.edit().clear().commit();
+                    Intent i = new Intent(mContext, LoginActivity.class);
+                    startActivity(i);
+                    finish();
+                    dialog.cancel();
+                }
+            });
+            builder.show();
         } else {
             final AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("Error logging out");
@@ -984,18 +1003,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (takeAfterPictureWashing != null && completeWashWashing != null && washcontact != null) {
             takeAfterPictureWashing.setOnClickListener(null);
             completeWashWashing.setOnClickListener(null);
+            washcontact.setOnClickListener(null);
         }
         if (takeBeforePictureArrived != null && beginWashArrived != null && arrivedcontact != null) {
             takeBeforePictureArrived.setOnClickListener(null);
             beginWashArrived.setOnClickListener(null);
+            arrivedcontact.setOnClickListener(null);
         }
-
+        if (beginNavigation != null && contactNavigation != null) {
+            beginNavigation.setOnClickListener(null);
+            contactNavigation.setOnClickListener(null);
+            washcontact.setOnClickListener(null);
+        }
 
     }
 
     public void removeContact() {
         //int view = R.layout.contact_layout;
-        ViewGroup parent = (ViewGroup) currentView.getParent();
+        ViewGroup parent = (ViewGroup) contactView.getParent();
         // int index = parent.indexOfChild(contactView);
         parent.removeView(contactView);
 

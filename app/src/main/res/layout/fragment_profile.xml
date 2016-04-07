@@ -21,7 +21,8 @@ android:id="@+id/profileFragment">
         android:orientation="vertical"
         android:background="@color/white"
         android:id="@+id/profileLayout"
-        android:gravity="center">
+        android:gravity="center"
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="wrap_content"

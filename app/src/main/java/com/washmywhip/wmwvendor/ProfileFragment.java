@@ -92,6 +92,8 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
     EditText emailEditText;
     @InjectView(R.id.phoneProfile)
     EditText phoneEditText;
+    @InjectView(R.id.profileAccount)
+    TextView accountProfile;
 
     TextView editButton;
 
@@ -228,9 +230,7 @@ public class ProfileFragment extends Fragment implements View.OnClickListener {
         usernameProfile.setText(username);
         emailEditText.setText(email);
         phoneEditText.setText(phone);
-
-        TextView account = (TextView)getActivity().findViewById(R.id.profileAccount);
-        account.setTypeface(mFont);
+        accountProfile.setTypeface(mFont);
         defaultKeyListener = usernameProfile.getKeyListener();
 
         editButton.setText("Edit");
