@@ -92,6 +92,15 @@ public class ConnectionManager {
                     intent.setAction("com.android.activity.SEND_DATA");
                     LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
                 }
+            }).on("requestExpired", new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    Log.d("server connection", "requestExpired");
+                    Intent intent = new Intent();
+                    intent.putExtra("requestExpired","true");
+                    intent.setAction("com.android.activity.SEND_DATA");
+                    LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
+                }
             }).on("washRequested", new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {

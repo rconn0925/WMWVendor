@@ -83,4 +83,8 @@ public interface WMWVendorService {
     @FormUrlEncoded
     @POST("/uploadVendorAvatarImageAndroid.php")
     void uploadVendorAvatarImageAndroid (@Field("vendorID") int vendorID, @Field("img") String encodedImage, Callback<Object> callback);
+
+    @FormUrlEncoded
+    @POST("/chargeStripeCustomer.php")
+    void chargeStripeCustomer(@Field("userID") int userID,@Field("cost") int costInCents , Callback<String> callback);
 }

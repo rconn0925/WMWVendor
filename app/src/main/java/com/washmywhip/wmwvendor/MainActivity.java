@@ -26,6 +26,7 @@ import android.os.CountDownTimer;
 import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -170,6 +171,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String carData;
     private boolean isSetup;
     private Typeface mFont;
+    private String picturePath;
 
     @InjectView(R.id.toolbar)
     Toolbar toolbar;
@@ -397,7 +399,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                     final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
                     builder.setTitle("Client canceled the wash request!");
-                    builder.setMessage("Your client canceled the wash. Please wait while we connect you to another customer!");
+                    builder.setMessage("Your client canceled the wash. Please wait while we connect you with another customer!");
                     builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
@@ -414,11 +416,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         }
                     });
                     builder.show();
+                } else  if (intent.hasExtra("requestExpired")){
 
+                    if(!((Activity) mContext).isFinishing())
+                    {
+                        //show dialog
+                        final AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                        builder.setTitle("Client canceled the wash request!");
+                        builder.setMessage("Your client canceled the wash. Please wait while we connect you with another customer!");
+                        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                initActive();
+                                if (mConnectionManager.isConnected()) {
+                                    mConnectionManager.startListening(currentLocation);
+                                    Log.d("server connection", "RECEIVER: Got cancel request success");
+                                } else {
+                                    Log.d("server connection", "RECEIVER: Got cancel request");
+                                }
 
-
-
-
+                                //SERVER POPUP??
+                                dialog.cancel();
+                            }
+                        });
+                        builder.show();
+                    }
                 }
             }
         };
@@ -562,10 +584,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mDrawerLayout.setDrawerListener(mDrawerToggle);
 
         ArrayList<NavDrawerItem> data = new ArrayList<>();
-        data.add(new NavDrawerItem("Wash My Whip",R.drawable.newwmw));
-        data.add(new NavDrawerItem("Profile",R.drawable.profileicon));
-        data.add(new NavDrawerItem("Payment", R.drawable.paymenticon));
-        data.add(new NavDrawerItem("About",R.drawable.abouticon));
+        data.add(new NavDrawerItem("WMW Vendor", R.drawable.newwmw));
+        data.add(new NavDrawerItem("Profile", R.drawable.profileicon));
+        data.add(new NavDrawerItem("About", R.drawable.abouticon));
         data.add(new NavDrawerItem("Sign Out", R.drawable.signout));
 
         navDrawerList.setAdapter(new NavDrawerListAdapter(this, R.layout.nav_drawer_item, data));
@@ -595,7 +616,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             removeCurrentStateView();
         } else if (position == 2) {
             Log.d("TEST", "PAYMENT");
-            //currentFragment = About.newInstance();
+            currentFragment = AboutFragment.newInstance();
             mapFragment.getView().setVisibility(View.INVISIBLE);
             removeCurrentStateView();
         } else if (position == 3) {
@@ -635,6 +656,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     dialog.cancel();
                 }
             });
+            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+
             builder.show();
         } else {
             final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -859,11 +887,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         youHaveArrived.setTypeface(mFont);
         washType.setTypeface(mFont);
         washCost.setTypeface(mFont);
+
         String color = mSharedPreferences.getString("CarColor", "null");
         String make = mSharedPreferences.getString("CarMake", "null");
         String model = mSharedPreferences.getString("CarModel", "null");
         String plate = mSharedPreferences.getString("CarPlate", "null");
         String name = mSharedPreferences.getString("userFullName", "null");
+        int costOfWash = mSharedPreferences.getInt("washPrice",20);
+        washCost.setText("$"+costOfWash+".00");
         String makeAndModel = make + " " + model;
 
         carColorArrived.setText(color);
@@ -926,6 +957,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         washingWashing.setTypeface(mFont);
         washType.setTypeface(mFont);
         washCost.setTypeface(mFont);
+        int costOfWash = mSharedPreferences.getInt("washPrice",20);
+        washCost.setText("$" + costOfWash + ".00");
 
         String color = mSharedPreferences.getString("CarColor", "null");
         String make = mSharedPreferences.getString("CarMake", "null");
@@ -1112,10 +1145,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if(data!=null) {
             Log.d("photoResult", "requestCode: " + requestCode + " ResultCode: " + requestCode + " Data: " + data.getDataString());
             super.onActivityResult(requestCode, resultCode, data);
+            if(data.getData()!=null){
 
+            }
             Uri photoUri = data.getData();
             String selectedImagePath = null;
-            Log.d("photoResult", "uri: " + photoUri.toString());
+            //Log.d("photoResult", "uri: " + photoUri.toString());
 
 
             Cursor cursor = this.getContentResolver().query(
@@ -1229,6 +1264,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 //                                          int[] grantResults)
                 // to handle the case where the user grants the permission. See the documentation
                 // for ActivityCompat#requestPermissions for more details.
+                showSettingsAlert();
                 return;
             }
             mMap.setMyLocationEnabled(true);
@@ -1243,10 +1279,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 //                                          int[] grantResults)
                 // to handle the case where the user grants the permission. See the documentation
                 // for ActivityCompat#requestPermissions for more details.
+                showSettingsAlert();
                 return;
             }
             mMap.setMyLocationEnabled(false);
         }
+    }
+
+    private void showSettingsAlert() {
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(mContext);
+
+        // Setting Dialog Title
+        alertDialog.setTitle("GPS settings");
+
+        // Setting Dialog Message
+        alertDialog.setMessage("GPS is not enabled. Do you want to go to settings menu?");
+
+        // On pressing Settings button
+        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog,int which) {
+                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                mContext.startActivity(intent);
+                dialog.cancel();
+            }
+        });
+        alertDialog.setCancelable(false);
+        alertDialog.show();
     }
 
 
@@ -1374,6 +1432,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             Log.d("completeTransaction","succuss: "+ s );
                             initFinalizing();
                             mConnectionManager.vendorHasCompletedWash(""+transactionID);
+                            //CHARGE STRIPE CUSTOMER
+
+                            int userID = mSharedPreferences.getInt("userID", -1);
+                            int costOfWash = mSharedPreferences.getInt("washPrice",20);
+
+                            if(userID>0){
+                                mWMWVendorEngine.chargeStripeCustomer(userID, costOfWash * 100, new Callback<String>() {
+                                    @Override
+                                    public void success(String s, Response response) {
+                                        Log.d("chargeStripeCustomer","succuss: "+ s );
+                                    }
+
+                                    @Override
+                                    public void failure(RetrofitError error) {
+                                        Log.d("chargeStripeCustomer","failz: "+ error.toString() );
+                                    }
+                                });
+                            }
+
+
+
                         }
 
                         @Override

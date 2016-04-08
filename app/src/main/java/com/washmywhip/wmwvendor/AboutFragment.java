@@ -1,12 +1,23 @@
 package com.washmywhip.wmwvendor;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
+import android.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+
+import java.util.List;
+
+import butterknife.ButterKnife;
+import butterknife.InjectView;
 
 
 /**
@@ -17,54 +28,39 @@ import android.view.ViewGroup;
  * Use the {@link AboutFragment#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class AboutFragment extends Fragment {
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+public class AboutFragment extends Fragment implements AdapterView.OnItemClickListener {
 
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
-
+    @InjectView(R.id.aboutList)
+     ListView aboutList;
     private OnFragmentInteractionListener mListener;
 
     public AboutFragment() {
         // Required empty public constructor
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment AboutFragment.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static AboutFragment newInstance(String param1, String param2) {
+
+    public static AboutFragment newInstance() {
         AboutFragment fragment = new AboutFragment();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.fragment_about, container, false);
+        ButterKnife.inject(this, v);
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_about, container, false);
+        String[] items = { "Rate Us In The App Store", "Like Us On Facebook", "Our Website", "Legal Documentation" };
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(),android.R.layout.simple_list_item_1, items);
+        aboutList.setAdapter(adapter);
+        aboutList.setOnItemClickListener(this);
+
+        return v;
     }
 
     // TODO: Rename method, update argument and hook method into UI event
@@ -91,6 +87,62 @@ public class AboutFragment extends Fragment {
         mListener = null;
     }
 
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        if(position == 0){
+            Log.d("AboutFrag","0");
+            rateOnPlayStore();
+        } else if (position == 1){
+            Log.d("AboutFrag","1");
+            likeUsOnFacebook();
+        } else if (position == 2){
+            Log.d("AboutFrag","2");
+            ourWebsite();
+        } else if (position == 3){
+            Log.d("AboutFrag","3");
+            legalDocumentation();
+        } else if (position == 4){
+            Log.d("AboutFrag","4");
+        }
+
+    }
+
+    public void rateOnPlayStore(){
+        Uri uri = Uri.parse("market://details?id=com.washmywhip.washmywhip");
+        Intent goToMarket = new Intent(Intent.ACTION_VIEW, uri);
+        // To count with Play market backstack, After pressing back button,
+        // to taken back to our application, we need to add following flags to intent.
+        goToMarket.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY |
+                Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET |
+                Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        try {
+            startActivity(goToMarket);
+        } catch (ActivityNotFoundException e) {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("http://play.google.com/store/apps/details?id=" + getActivity().getPackageName())));
+        }
+    }
+
+    public void likeUsOnFacebook(){
+        String url = "http://www.facebook.com";
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
+
+    public void ourWebsite() {
+        String url = "http://www.washmywhip.com";
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
+
+    public void legalDocumentation(){
+        String url = "http://www.washmywhip.com/legal";
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated

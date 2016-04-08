@@ -61,6 +61,9 @@ public class WMWVendorEngine {
         mService.rateUser(transactionID, rating, comments, callback);
     }
 
+    public void chargeStripeCustomer(int userID,int costInCents,Callback<String> callback) {
+        mService.chargeStripeCustomer(userID, costInCents, callback);
+    }
     public void getUserWithID(int userID, Callback<JSONObject> callback) {
         mService.getUserWithID(userID, callback);
     }
